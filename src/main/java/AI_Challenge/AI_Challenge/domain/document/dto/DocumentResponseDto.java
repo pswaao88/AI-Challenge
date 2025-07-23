@@ -1,9 +1,11 @@
 package AI_Challenge.AI_Challenge.domain.document.dto;
 
 import AI_Challenge.AI_Challenge.domain.document.entity.Document;
+import lombok.Builder;
 import lombok.Getter;
 
 @Getter
+@Builder
 public class DocumentResponseDto {
     private Long id;
     private String originalFileName;

@@ -1,9 +1,10 @@
 // src/components/DocSelector/DocSelector.jsx
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import styled from 'styled-components';
 
 const Container = styled.div`
-  width: 300px;
+  width: 100%;
+  min-width: 250px;
   background-color: #f8f8f8;
   border-radius: 8px;
   padding: 20px;
@@ -18,18 +19,19 @@ const Title = styled.h3`
 `;
 
 const DocList = styled.div`
-  max-height: 250px;
+  min-height: 200px;
+  max-height: 400px;
   overflow-y: auto;
   margin-bottom: 15px;
-  
+
   &::-webkit-scrollbar {
     width: 6px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: #f1f1f1;
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: #888;
     border-radius: 3px;
@@ -63,19 +65,11 @@ const DocName = styled.span`
   color: #444;
 `;
 
-const Badge = styled.span`
+const UploadedBadge = styled.span`
   padding: 2px 6px;
   border-radius: 12px;
   font-size: 0.8rem;
   margin-left: 8px;
-`;
-
-const DBBadge = styled(Badge)`
-  background-color: #e9ecef;
-  color: #666;
-`;
-
-const UploadedBadge = styled(Badge)`
   background-color: #d4edda;
   color: #28a745;
 `;
@@ -116,17 +110,10 @@ const HiddenInput = styled.input`
   display: none;
 `;
 
-// 임시 더미 데이터
-const initialDocs = [
-  { id: 1, name: '표준 근로계약서.doc', isDB: true },
-  { id: 2, name: '업무 위임장.doc', isDB: true },
-  { id: 3, name: '급여 명세서.doc', isDB: true },
-];
-
-function DocSelector() {
-  const [docs, setDocs] = useState(initialDocs);
+function DocSelector({ onDocsSelect }) {
+  const [docs, setDocs] = useState([]);
   const [selectedDocs, setSelectedDocs] = useState(new Set());
-  const fileInputRef = React.useRef(null);
+  const fileInputRef = useRef(null);
 
   const handleDocSelect = (docId) => {
     setSelectedDocs(prev => {
@@ -136,6 +123,11 @@ function DocSelector() {
       } else {
         newSelected.add(docId);
       }
+
+      // 선택된 문서 목록을 상위 컴포넌트로 전달
+      const selectedDocsList = docs.filter(doc => newSelected.has(doc.id));
+      onDocsSelect(selectedDocsList);
+
       return newSelected;
     });
   };
@@ -145,7 +137,7 @@ function DocSelector() {
     if (file) {
       const validExtensions = ['.doc', '.docx', '.pdf'];
       const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-      
+
       if (!validExtensions.includes(fileExtension)) {
         alert('doc, docx, pdf 파일만 업로드 가능합니다.');
         return;
@@ -153,9 +145,7 @@ function DocSelector() {
 
       const newDoc = {
         id: Date.now(),
-        name: file.name,
-        isDB: false,
-        file: file
+        name: file.name
       };
 
       setDocs(prevDocs => [...prevDocs, newDoc]);
@@ -164,44 +154,44 @@ function DocSelector() {
   };
 
   return (
-    <Container>
-      <Title>문서 템플릿 선택</Title>
-      
-      <SelectedCount>
-        선택된 문서: {selectedDocs.size}개
-      </SelectedCount>
+      <Container>
+        <Title>문서 템플릿 선택</Title>
 
-      <DocList>
-        {docs.map(doc => (
-          <DocItem key={doc.id}>
-            <Checkbox
-              type="checkbox"
-              checked={selectedDocs.has(doc.id)}
-              onChange={() => handleDocSelect(doc.id)}
-            />
-            <DocName>{doc.name}</DocName>
-            {doc.isDB ? (
-              <DBBadge>DB</DBBadge>
-            ) : (
-              <UploadedBadge>추가됨</UploadedBadge>
-            )}
-          </DocItem>
-        ))}
-      </DocList>
+        <SelectedCount>
+          선택된 문서: {selectedDocs.size}개
+        </SelectedCount>
 
-      <UploadSection>
-        <UploadButton onClick={() => fileInputRef.current.click()}>
-          새 문서 템플릿 추가
-        </UploadButton>
-        <HiddenInput
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileUpload}
-          accept=".doc,.docx,.pdf"
-        />
-      </UploadSection>
-    </Container>
+        <DocList>
+          {docs.map(doc => (
+              <DocItem key={doc.id}>
+                <Checkbox
+                    type="checkbox"
+                    checked={selectedDocs.has(doc.id)}
+                    onChange={() => handleDocSelect(doc.id)}
+                />
+                <DocName>{doc.name}</DocName>
+                <UploadedBadge>추가됨</UploadedBadge>
+              </DocItem>
+          ))}
+        </DocList>
+
+        <UploadSection>
+          <UploadButton onClick={() => fileInputRef.current.click()}>
+            새 문서 템플릿 추가
+          </UploadButton>
+          <HiddenInput
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".doc,.docx,.pdf"
+          />
+        </UploadSection>
+      </Container>
   );
 }
+
+DocSelector.defaultProps = {
+  onDocsSelect: () => {} // 기본값 설정
+};
 
 export default DocSelector;

@@ -16,24 +16,17 @@ public class Document extends BaseTimeEntity {
     private Long id;
 
     @Column(nullable = false)
-    private String originalFileName;    // 원본 파일명
+    private String name;    // 문서 이름
 
     @Column(nullable = false)
     private String storedFileName;      // 저장된 파일명
 
     private String filePath;            // 파일 저장 경로
 
-    private Long fileSize;              // 파일 크기
-
-    private String fileType;            // 파일 타입
-
     @Builder
-    public Document(String originalFileName, String storedFileName,
-        String filePath, Long fileSize, String fileType) {
-        this.originalFileName = originalFileName;
+    public Document(String name, String storedFileName, String filePath) {
+        this.name = name;
         this.storedFileName = storedFileName;
         this.filePath = filePath;
-        this.fileSize = fileSize;
-        this.fileType = fileType;
     }
 }

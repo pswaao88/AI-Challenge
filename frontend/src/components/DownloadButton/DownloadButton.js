@@ -25,6 +25,8 @@ const Button = styled.button`
   cursor: pointer;
   font-size: 1.1rem;
   transition: all 0.3s ease;
+  white-space: nowrap; // 추가: 텍스트 개행 방지
+  min-width: 220px; // 추가: 최소 너비 설정
 
   &:hover {
     background-color: #138496;
