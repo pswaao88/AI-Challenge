@@ -1,9 +1,12 @@
 // src/pages/MainPage/MainPage.jsx
 import React, { useState } from 'react';
+import axios from 'axios';
+import { API_BASE_URL } from '../../utils/config';
 import styled from 'styled-components';
 import FileUpload from '../../components/FileUpload/FileUpload';
 import DocSelector from '../../components/DocSelector/DocSelector';
 import ProcessedDocs from '../../components/ProcessedDocs/ProcessedDocs';
+import {fetchDocuments} from "../../services/documentService";
 
 const Container = styled.div`
   max-width: 1800px;
@@ -77,20 +80,61 @@ const ArrowButton = styled.button`
   }
 `;
 
+const ErrorMessage = styled.div`
+  color: #dc3545;
+  text-align: center;
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #ffe6e6;
+  border-radius: 4px;
+`;
+
+
 function MainPage() {
   const [selectedDocs, setSelectedDocs] = useState([]);
   const [processedDocs, setProcessedDocs] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState([]); // errors 상태 추가
 
   const handleProcessDocs = async () => {
     if (selectedDocs.length === 0) return;
 
     setIsLoading(true);
-    // 실제로는 여기서 API 호출을 하겠지만, 지금은 타이머로 대체
-    setTimeout(() => {
-      setProcessedDocs(selectedDocs);
+    try {
+      const uploadPromises = selectedDocs.map(async (doc) => {
+        // DB에 있는 문서는 file 속성이 없음
+        if (!doc.file) {
+          // DB 문서는 바로 처리된 상태로 반환
+          return {
+            ...doc,
+            fileName: `(완료) ${doc.fileName || doc.name}`
+          };
+        }
+
+        // 새로운 파일 업로드
+        const formData = new FormData();
+        formData.append('file', doc.file);
+        const response = await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        // 업로드된 문서에도 (완료) 표시 추가
+        return {
+          ...response.data,
+          fileName: `(완료) ${response.data.fileName || response.data.name}`
+        };
+      });
+
+      const results = await Promise.all(uploadPromises);
+      setProcessedDocs(results);
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('문서 처리 중 오류가 발생했습니다.');
+    } finally {
       setIsLoading(false);
-    }, 2000);
+    }
   };
 
   return (
@@ -100,7 +144,7 @@ function MainPage() {
           <ProcessFlow>
             <Step>
               <StepNumber>Step 1</StepNumber>
-              <FileUpload />
+              <FileUpload onFilesChange={setSelectedDocs} />
             </Step>
             <Step>
               <StepNumber>Step 2</StepNumber>
@@ -116,6 +160,13 @@ function MainPage() {
             </ArrowButton>
             <Step>
               <StepNumber>Step 3</StepNumber>
+              {errors.length > 0 && (
+                  <div>
+                    {errors.map((error, index) => (
+                        <ErrorMessage key={index}>{error}</ErrorMessage>
+                    ))}
+                  </div>
+              )}
               <ProcessedDocs
                   docs={processedDocs}
                   isLoading={isLoading}

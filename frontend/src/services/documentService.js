@@ -1,4 +1,4 @@
-import axios from './axiosInstance';
+import axios from '../utils/axiosInstance';
 
 // 문서 목록 조회
 export const fetchDocuments = () => {

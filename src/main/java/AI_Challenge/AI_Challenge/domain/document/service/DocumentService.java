@@ -2,57 +2,82 @@ package AI_Challenge.AI_Challenge.domain.document.service;
 
 import AI_Challenge.AI_Challenge.domain.document.entity.Document;
 import AI_Challenge.AI_Challenge.domain.document.repository.DocumentRepository;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
+import java.io.ByteArrayInputStream;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class DocumentService {
+
     private final DocumentRepository documentRepository;
-    private final String uploadPath = "C:/upload/"; // 실제 경로로 수정 필요
+    @Value("${document.upload.path}")
+    private String uploadPath;
 
-    // 문서 업로드
-    @Transactional
-    public Document uploadDocument(MultipartFile file) throws Exception {
-        // 파일 확장자 검사
-        String originalFilename = file.getOriginalFilename();
-        if (!isValidFileType(originalFilename)) {
-            throw new IllegalArgumentException("올바른 파일 형식이 아닙니다.");
-        }
-
-        // 저장할 파일명 생성
-        String storedFileName = UUID.randomUUID() + "_" + originalFilename;
-        String filePath = uploadPath + storedFileName;
-
-        // 파일 저장
-        file.transferTo(new File(filePath));
-
-        // DB에 저장
-        Document document = Document.builder()
-            .name(originalFilename)
-            .storedFileName(storedFileName)
-            .filePath(filePath)
-            .build();
-
-        return documentRepository.save(document);
-    }
-
-    // 모든 문서 조회
     @Transactional(readOnly = true)
     public List<Document> getAllDocuments() {
         return documentRepository.findAll();
     }
 
-    // 파일 타입 검사
-    private boolean isValidFileType(String filename) {
-        return filename.toLowerCase().endsWith(".doc") ||
-            filename.toLowerCase().endsWith(".docx") ||
-            filename.toLowerCase().endsWith(".pdf");
+    @Transactional
+    public Document uploadDocument(MultipartFile file) throws Exception {
+        validateFile(file);
+
+        // 저장할 파일 경로 생성
+        String fileName = file.getOriginalFilename();
+        Path targetPath = Paths.get(uploadPath, fileName);
+
+        // 디렉토리가 없으면 생성
+        Files.createDirectories(targetPath.getParent());
+
+        // 파일 저장
+        Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+
+        // 문서 내용 추출
+        String extractedText = extractTextFromDoc(file.getBytes());
+
+        Document document = Document.builder()
+            .fileName(fileName)
+            .fileType(file.getContentType())
+            .filePath(targetPath.toString())
+            .content(file.getBytes())
+            .uploadDateTime(LocalDateTime.now())
+            .extractedText(extractedText)
+            .build();
+
+        return documentRepository.save(document);
+    }
+
+
+    private void validateFile(MultipartFile file) {
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("파일이 비어있습니다.");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.contains("word")) {
+            throw new IllegalArgumentException("DOCS 파일만 업로드 가능합니다.");
+        }
+    }
+
+    private String extractTextFromDoc(byte[] content) throws Exception {
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(content);
+            XWPFDocument document = new XWPFDocument(bis);
+            XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
+
+            return extractor.getText();
+        }
     }
 }

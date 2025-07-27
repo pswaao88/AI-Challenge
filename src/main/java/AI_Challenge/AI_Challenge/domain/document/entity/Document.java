@@ -1,32 +1,37 @@
 package AI_Challenge.AI_Challenge.domain.document.entity;
 
-import AI_Challenge.AI_Challenge.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.AccessLevel;
+import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "documents")
 @Getter
-@NoArgsConstructor
-public class Document extends BaseTimeEntity {
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
+public class Document {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private String name;    // 문서 이름
+    private String fileName;
+    
+    private String fileType;
+    
+    private String filePath;
 
-    @Column(nullable = false)
-    private String storedFileName;      // 저장된 파일명
+    @Lob
+    @Column(columnDefinition = "LONGBLOB")
+    private byte[] content;
 
-    private String filePath;            // 파일 저장 경로
+    @Column(columnDefinition = "TEXT")
+    private String extractedText;
 
-    @Builder
-    public Document(String name, String storedFileName, String filePath) {
-        this.name = name;
-        this.storedFileName = storedFileName;
-        this.filePath = filePath;
-    }
+    private LocalDateTime uploadDateTime;
 }

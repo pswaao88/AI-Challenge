@@ -136,24 +136,32 @@ function FileUpload() {
   };
 
   const handleFiles = (files) => {
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    const docFiles = files.filter(file => {
+      const type = file.type.toLowerCase();
+      return type === 'application/pdf' ||
+          type === 'application/msword' ||
+          type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    });
 
-    if (imageFiles.length !== files.length) {
-      alert('이미지 파일만 업로드 가능합니다.');
+    if (docFiles.length !== files.length) {
+      alert('문서 파일(.doc, .docx, .pdf)만 업로드 가능합니다.');
+      return;
     }
 
-    imageFiles.forEach(file => {
+    docFiles.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => {
         setImages(prevImages => [{
           id: Date.now() + Math.random(),
           url: e.target.result,
-          name: file.name
+          name: file.name,
+          file: file  // 원본 파일 객체 저장
         }, ...prevImages]);
       };
       reader.readAsDataURL(file);
     });
   };
+
 
   const handleButtonClick = () => {
     fileInputRef.current.click();

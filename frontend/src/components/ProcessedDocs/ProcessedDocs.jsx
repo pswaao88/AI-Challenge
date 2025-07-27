@@ -105,39 +105,51 @@ const LoadingSpinner = styled.div`
 
 function ProcessedDocs({ docs, isLoading }) {
   const handleDownload = (doc) => {
-    // 실제 다운로드 로직을 여기에 구현
-    // 임시로 콘솔에 기록
-    console.log('Downloading:', doc.name);
-    
-    // 임시 다운로드 시뮬레이션
-    const element = document.createElement('a');
-    const file = new Blob(['임시 파일 내용'], { type: 'text/plain' });
-    element.href = URL.createObjectURL(file);
-    element.download = doc.name;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+    // 빈 .docx 파일 생성
+    const blob = new Blob([''], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    });
+
+    // 파일 이름 설정 (원본 문서 이름에서 '(완료)' 제거하고 .docx 확장자 추가)
+    const fileName = doc.fileName.replace('(완료) ', '').replace(/\.[^/.]+$/, '') + '.docx';
+
+    // 다운로드 링크 생성
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = fileName;
+
+    // 다운로드 실행
+    document.body.appendChild(a);
+    a.click();
+
+    // 정리
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   };
 
+
   return (
-    <Container>
-      <Title>처리된 문서</Title>
-      {isLoading ? (
-        <LoadingSpinner />
-      ) : (
-        <DocList>
-          {docs.map(doc => (
-            <DocItem key={doc.id}>
-              <DocName>{doc.name}</DocName>
-              <DownloadButton onClick={() => handleDownload(doc)}>
-                다운로드
-              </DownloadButton>
-            </DocItem>
-          ))}
-        </DocList>
-      )}
-    </Container>
+      <Container>
+        <Title>처리된 문서</Title>
+        {isLoading ? (
+            <LoadingSpinner />
+        ) : (
+            <DocList>
+              {Array.isArray(docs) && docs.map(doc => (  // 배열 체크 추가
+                  <DocItem key={doc.id}>
+                    <DocName>{doc.fileName}</DocName>  {/* doc.name을 doc.fileName으로 변경 */}
+                    <DownloadButton onClick={() => handleDownload(doc)}>
+                      다운로드
+                    </DownloadButton>
+                  </DocItem>
+              ))}
+            </DocList>
+        )}
+      </Container>
   );
+
 }
 
 export default ProcessedDocs;
