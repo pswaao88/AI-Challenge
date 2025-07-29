@@ -2,6 +2,8 @@ package AI_Challenge.AI_Challenge.domain.document.service;
 
 import AI_Challenge.AI_Challenge.domain.document.entity.Document;
 import AI_Challenge.AI_Challenge.domain.document.repository.DocumentRepository;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -9,6 +11,8 @@ import java.nio.file.StandardCopyOption;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -79,5 +83,45 @@ public class DocumentService {
 
             return extractor.getText();
         }
+    }
+
+    public byte[] convertMarkdownToDocx(String markdown) throws IOException {
+        // DOCX 문서 생성
+        XWPFDocument document = new XWPFDocument();
+
+        // 마크다운을 문단으로 분리
+        String[] lines = markdown.split("\n");
+
+        for (String line : lines) {
+            if (line.trim().isEmpty()) {
+                continue;
+            }
+
+            XWPFParagraph paragraph = document.createParagraph();
+            XWPFRun run = paragraph.createRun();
+
+            // 기본적인 마크다운 문법 처리
+            if (line.startsWith("# ")) {
+                // 헤더 1
+                run.setText(line.substring(2));
+                run.setBold(true);
+                run.setFontSize(20);
+            } else if (line.startsWith("## ")) {
+                // 헤더 2
+                run.setText(line.substring(3));
+                run.setBold(true);
+                run.setFontSize(16);
+            } else {
+                // 일반 텍스트
+                run.setText(line);
+            }
+        }
+
+        // 바이트 배열로 변환
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        document.write(outputStream);
+        document.close();
+
+        return outputStream.toByteArray();
     }
 }

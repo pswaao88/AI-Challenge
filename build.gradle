@@ -52,6 +52,12 @@ dependencies {
 	// XML
 	implementation 'org.apache.xmlbeans:xmlbeans:5.1.1'
 
+	// 새로운 Gemini 의존성 추가
+	implementation 'com.google.genai:google-genai:1.10.0'
+
+	// GPT
+	implementation 'com.theokanning.openai-gpt3-java:service:0.18.2'
+
 }
 
 tasks.named('test') {

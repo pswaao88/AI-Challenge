@@ -1,43 +1,46 @@
 package AI_Challenge.AI_Challenge.domain.document.controller;
 
-import AI_Challenge.AI_Challenge.domain.document.entity.Document;
+import AI_Challenge.AI_Challenge.domain.document.dto.MarkdownRequestDTO;
 import AI_Challenge.AI_Challenge.domain.document.service.DocumentService;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/documents")
-@RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
+@RequestMapping("/api/document")
+@Slf4j
 public class DocumentController {
-
+    
     private final DocumentService documentService;
-
-    @GetMapping
-    public ResponseEntity<List<Document>> getAllDocuments() {
-        try {
-            List<Document> documents = documentService.getAllDocuments();
-            return ResponseEntity.ok(documents);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    
+    @Autowired
+    public DocumentController(DocumentService documentService) {
+        this.documentService = documentService;
     }
-
-    @PostMapping("/upload")
-    public ResponseEntity<?> uploadDocument(@RequestParam("file") MultipartFile file) {
+    
+    @PostMapping("/convert")
+    public ResponseEntity<byte[]> convertMarkdownToDocx(@RequestBody MarkdownRequestDTO request) {
         try {
-            Document savedDocument = documentService.uploadDocument(file);
-            return ResponseEntity.ok(savedDocument);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            byte[] docxBytes = documentService.convertMarkdownToDocx(request.getMarkdownContent());
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDisposition(ContentDisposition.builder("attachment")
+                    .filename("converted.docx")
+                    .build());
+            
+            return new ResponseEntity<>(docxBytes, headers, HttpStatus.OK);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("파일 업로드 중 오류가 발생했습니다: " + e.getMessage());
+            log.error("문서 변환 중 오류 발생", e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }
