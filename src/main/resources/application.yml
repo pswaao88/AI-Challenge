@@ -18,3 +18,7 @@ spring:
 document:
   upload:
     path: /app/document-upload
+
+openai:
+  api:
+    key: ${OPENAI_API_KEY}
