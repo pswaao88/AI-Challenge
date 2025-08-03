@@ -37,7 +37,7 @@ out/
 .vscode/
 
 ### properties ###
-src/main/resources/application*.*
+src/main/resources/application*.properties
 
 # Frontend
 frontend/node_modules/
@@ -53,3 +53,5 @@ frontend/yarn-debug.log*
 frontend/yarn-error.log*
 frontend/.pnp
 frontend/.pnp.js
+
+.env
