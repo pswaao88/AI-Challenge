@@ -10,7 +10,8 @@ services:
       - REACT_APP_API_URL=/api  # Nginx가 /api로 프록시하므로 상대 경로 사용
     volumes:
       - npm-cache:/root/.npm # npm 캐시 볼륨 마운트
-      - ./frontend:/app # 프론트엔드 소스 코드 변경 시 실시간 반영을 위한 마운트 (선택 사항)
+      - ./:/app # 프론트엔드 소스 코드 변경 시 실시간 반영을 위한 마운트 (선택 사항)
+      - app/node_modules
     networks:
       - frontend-network
 
