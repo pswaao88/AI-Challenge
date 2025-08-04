@@ -1,25 +1,18 @@
-# Node.js 21 (Debian 기반) 이미지를 사용합니다.
+# Stage 1: 프론트엔드 애플리케이션 빌드 (build-stage)
 FROM node:21 as build-stage
 
-# 작업 디렉토리 설정
 WORKDIR /app
 
-# package.json과 package-lock.json 복사
 COPY package*.json ./
-
-# npm 캐시 디렉토리를 지정하고, 캐시 볼륨을 활용하여 의존성 설치 속도를 높입니다.
-# /root/.npm은 컨테이너 내부의 npm 캐시 기본 경로입니다.
-# 이 경로는 docker-compose.yml에서 볼륨으로 마운트될 것입니다.
-RUN npm config set cache /root/.npm
 
 # 의존성 설치
 # npm install 명령어 실행 전에 npm config를 설정하여 타임아웃을 늘리고,
 # 레지스트리를 명시적으로 설정합니다.
-RUN npm config set fetch-retry-maxtimeout 600000 && \
+# 'prefer-online'과 'prefer-offline' 옵션은 제거했습니다.
+RUN npm config set cache /root/.npm && \
+    npm config set fetch-retry-maxtimeout 600000 && \
     npm config set fetch-timeout 600000 && \
     npm config set registry "https://registry.npmjs.org/" && \
-    npm config set prefer-online true && \
-    npm config set prefer-offline false && \
     npm install
 
 # 모든 프론트엔드 소스 코드 복사
