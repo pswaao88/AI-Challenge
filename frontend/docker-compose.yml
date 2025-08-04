@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-challenge-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=/api  # Nginx가 /api로 프록시하므로 상대 경로 사용
+    networks:
+      - frontend-network
+
+networks:
+  frontend-network:
+    driver: bridge
