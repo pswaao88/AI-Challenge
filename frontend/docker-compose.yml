@@ -11,7 +11,7 @@ services:
     volumes:
       - npm-cache:/root/.npm # npm 캐시 볼륨 마운트
       - ./:/app # 프론트엔드 소스 코드 변경 시 실시간 반영을 위한 마운트 (선택 사항)
-      - app/node_modules
+      - /app/node_modules
     networks:
       - frontend-network
 
