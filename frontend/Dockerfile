@@ -1,38 +1,47 @@
-# Node.js 기반 이미지 사용
-FROM node:21-alpine
-# Alpine Linux 기반의 경량화된 Node.js 21 버전 이미지를 사용합니다.
-# Alpine 이미지는 매우 작은 크기로 최적화되어 있습니다.
+# Stage 1: 프론트엔드 애플리케이션 빌드 (build-stage)
+# Node.js 21 버전의 경량(alpine) 이미지를 사용합니다.
+FROM node:21-alpine as build-stage
 
-# 작업 디렉토리 설정
-WORKDIR /app/frontend
-# 컨테이너 내부에서 작업할 디렉토리를 지정합니다.
-# 이후의 모든 명령어는 이 디렉토리를 기준으로 실행됩니다.
+# 컨테이너 내부의 작업 디렉토리를 /app으로 설정합니다.
+# docker-compose.yml에서 build: ./frontend로 지정했으므로,
+# 이 /app 디렉토리로 호스트의 'frontend' 폴더 내용이 복사됩니다.
+WORKDIR /app
 
-# package.json과 package-lock.json 복사
+# package.json과 package-lock.json (또는 yarn.lock) 파일을 먼저 복사합니다.
+# 이는 의존성 설치 레이어를 캐싱하여 빌드 속도를 최적화하기 위함입니다.
 COPY package*.json ./
-# 의존성 설치를 위한 패키지 파일들만 먼저 복사합니다.
-# 이는 Docker 레이어 캐싱을 최적화하기 위한 것입니다.
 
-# 의존성 설치
-RUN npm install
-# package.json에 명시된 모든 의존성을 설치합니다.
+# 의존성 설치 시 네트워크 타임아웃을 늘리고, npm install을 실행합니다.
+# fetch-retry-maxtimeout: 패키지 다운로드 재시도 시 최대 대기 시간 (ms)
+# fetch-timeout: 단일 패키지 다운로드 시 최대 대기 시간 (ms)
+RUN npm config set fetch-retry-maxtimeout 600000 && \
+    npm config set fetch-timeout 600000 && \
+    npm install
 
-# frontend 디렉토리의 소스 코드 복사
-COPY . .
-# 현재 디렉토리의 모든 파일을 컨테이너의 작업 디렉토리로 복사합니다.
+# 모든 프론트엔드 소스 코드 복사 (의존성 설치 후)
 # .dockerignore 파일에 명시된 파일/디렉토리는 제외됩니다.
+COPY . .
 
-# 빌드
-RUN npm run build
 # React 애플리케이션을 프로덕션용으로 빌드합니다.
-# 이 단계는 실제로는 개발 서버를 실행할 것이므로 필요하지 않을 수 있습니다.
+# 이 명령어는 'build' 또는 'dist'와 같은 정적 파일들을 생성합니다.
+# 프로젝트에 따라 'npm run build' 대신 'yarn build' 등을 사용하세요.
+RUN npm npm run build
 
-# React 개발 서버 포트
-EXPOSE 3000
-# 컨테이너가 3000번 포트를 사용한다는 것을 문서화합니다.
-# 실제 포트 매핑은 docker run의 -p 옵션이나 docker-compose.yml에서 해야 합니다.
+# Stage 2: 빌드된 애플리케이션을 Nginx를 통해 서빙 (production-stage)
+# Nginx의 안정적인 경량(alpine) 이미지를 사용합니다.
+FROM nginx:stable-alpine as production-stage
 
-# 앱 실행
-CMD ["npm", "start"]
-# 컨테이너가 시작될 때 실행할 명령어입니다.
-# npm start는 개발 서버를 실행합니다.
+# Nginx 기본 설정 파일을 삭제하고 사용자 정의 설정 파일을 복사합니다.
+# 이 파일은 프론트엔드 프로젝트 폴더(./frontend) 안에 'nginx.conf'라는 이름으로 있어야 합니다.
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 첫 번째 Stage (build-stage)에서 빌드된 정적 파일들을 Nginx의 웹 루트 디렉토리로 복사합니다.
+# '/app/build'는 'npm run build' 명령으로 생성되는 실제 빌드 결과물 폴더 경로입니다.
+# 만약 빌드 결과물이 'dist' 폴더에 생성된다면, '/app/dist'로 변경해야 합니다.
+COPY --from=build-stage /app/build /usr/share/nginx/html
+
+# Nginx가 80번 포트에서 요청을 수신하도록 노출합니다.
+EXPOSE 80
+
+# 컨테이너가 시작될 때 Nginx 프로세스를 포그라운드에서 실행하여 컨테이너가 계속 실행되도록 합니다.
+CMD ["nginx", "-g", "daemon off;"]
