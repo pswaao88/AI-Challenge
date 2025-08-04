@@ -9,6 +9,7 @@ services:
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     depends_on:
       db:
         condition: service_healthy
@@ -24,7 +25,6 @@ services:
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
