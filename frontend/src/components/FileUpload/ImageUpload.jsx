@@ -1,4 +1,4 @@
-// src/components/FileUpload/FileUpload.jsx
+
 import React, { useState, useRef } from 'react';
 import styled from 'styled-components';
 
@@ -29,47 +29,10 @@ const UploadContainer = styled.div`
   }
 `;
 
-const ImageList = styled.div`
-  width: 250px;
-  max-height: 300px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 5px;
-  
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 3px;
-  }
-`;
-
-const ImageItem = styled.div`
-  position: relative;
-  width: 100%;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  background-color: white;
-
-  &:hover .delete-button {
-    opacity: 1;
-  }
-`;
-
-const PreviewImage = styled.img`
-  width: 100%;
-  height: 150px;
-  object-fit: contain;
-  border-radius: 8px;
+const UploadText = styled.div`
+  text-align: center;
+  color: #666;
+  margin-bottom: 10px;
 `;
 
 const UploadButton = styled.button`
@@ -79,14 +42,42 @@ const UploadButton = styled.button`
   border-radius: 4px;
   padding: 8px 16px;
   cursor: pointer;
-  margin-top: 10px;
   font-size: 0.9rem;
   transition: all 0.2s ease;
+  width: 200px;
 
   &:hover {
     background-color: #0056b3;
     transform: translateY(-1px);
   }
+`;
+
+const HiddenInput = styled.input`
+  display: none;
+`;
+
+const ImageList = styled.div`
+  width: 250px;
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 5px;
+`;
+
+const ImageItem = styled.div`
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+`;
+
+const PreviewImage = styled.img`
+  width: 100%;
+  height: 150px;
+  object-fit: contain;
+  border-radius: 8px;
 `;
 
 const DeleteButton = styled.button`
@@ -105,24 +96,59 @@ const DeleteButton = styled.button`
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.2s ease;
-  
+
   &:hover {
     background-color: rgba(255, 0, 0, 0.9);
   }
+
+  ${ImageItem}:hover & {
+    opacity: 1;
+  }
 `;
 
-const HiddenInput = styled.input`
-  display: none;
+const Modal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 `;
 
-const UploadText = styled.div`
-  text-align: center;
-  color: #666;
-  margin-bottom: 10px;
+const ModalImage = styled.img`
+  max-width: 90%;
+  max-height: 90vh;
+  object-fit: contain;
 `;
 
-function FileUpload() {
+const CloseButton = styled.button`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &:hover {
+    background: #e0e0e0;
+  }
+`;
+
+
+function ImageUpload({ onFilesChange }) {
   const [images, setImages] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
   const fileInputRef = useRef(null);
 
   const handleDragOver = (e) => {
@@ -136,45 +162,59 @@ function FileUpload() {
   };
 
   const handleFiles = (files) => {
-    const docFiles = files.filter(file => {
-      const type = file.type.toLowerCase();
-      return type === 'application/pdf' ||
-          type === 'application/msword' ||
-          type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    });
-
-    if (docFiles.length !== files.length) {
-      alert('문서 파일(.doc, .docx, .pdf)만 업로드 가능합니다.');
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    if (imageFiles.length !== files.length) {
+      alert('이미지 파일만 업로드 가능합니다.');
       return;
     }
+    processFiles(imageFiles);
+  };
 
-    docFiles.forEach(file => {
+  const processFiles = (files) => {
+    files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setImages(prevImages => [{
+        const newImage = {
           id: Date.now() + Math.random(),
           url: e.target.result,
           name: file.name,
-          file: file  // 원본 파일 객체 저장
-        }, ...prevImages]);
+          file: file
+        };
+        setImages(prevImages => [newImage, ...prevImages]);
+        if (onFilesChange) {
+          onFilesChange(prev => [newImage, ...prev]);
+        }
       };
       reader.readAsDataURL(file);
     });
   };
 
-
-  const handleButtonClick = () => {
+  const handleUploadClick = () => {
     fileInputRef.current.click();
   };
 
   const handleFileInput = (e) => {
     const files = Array.from(e.target.files);
     handleFiles(files);
-    e.target.value = ''; // 입력 초기화
+    e.target.value = '';
   };
 
   const handleDeleteImage = (imageId) => {
-    setImages(prevImages => prevImages.filter(image => image.id !== imageId));
+    setImages(prevImages => {
+      const newImages = prevImages.filter(image => image.id !== imageId);
+      if (onFilesChange) {
+        onFilesChange(newImages);
+      }
+      return newImages;
+    });
+  };
+
+  const handleImageClick = (image) => {
+    setSelectedImage(image);
+  };
+
+  const closeModal = () => {
+    setSelectedImage(null);
   };
 
   return (
@@ -183,8 +223,8 @@ function FileUpload() {
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
-          <UploadText>영수증 이미지를 드래그하거나<br/>버튼을 클릭하세요</UploadText>
-          <UploadButton onClick={handleButtonClick}>
+          <UploadText>이미지를 드래그하거나<br/>버튼을 클릭하세요</UploadText>
+          <UploadButton onClick={handleUploadClick}>
             + 이미지 업로드
           </UploadButton>
           <HiddenInput
@@ -200,9 +240,13 @@ function FileUpload() {
             <ImageList>
               {images.map((image) => (
                   <ImageItem key={image.id}>
-                    <PreviewImage src={image.url} alt={image.name} />
+                    <PreviewImage
+                        src={image.url}
+                        alt={image.name}
+                        onClick={() => handleImageClick(image)}
+                        style={{ cursor: 'pointer' }}
+                    />
                     <DeleteButton
-                        className="delete-button"
                         onClick={() => handleDeleteImage(image.id)}
                     >
                       ×
@@ -211,8 +255,19 @@ function FileUpload() {
               ))}
             </ImageList>
         )}
+
+        {selectedImage && (
+            <Modal onClick={closeModal}>
+              <ModalImage
+                  src={selectedImage.url}
+                  alt={selectedImage.name}
+                  onClick={(e) => e.stopPropagation()}
+              />
+              <CloseButton onClick={closeModal}>×</CloseButton>
+            </Modal>
+        )}
       </Container>
   );
 }
 
-export default FileUpload;
+export default ImageUpload;
