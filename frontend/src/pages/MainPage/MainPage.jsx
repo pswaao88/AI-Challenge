@@ -103,12 +103,52 @@ function MainPage() {
 
     setIsLoading(true);
     try {
-      const processedFiles = selectedDocs.map(doc => ({
-        fileName: doc.fileName || doc.name,
-        file: doc.file
-      }));
+      const uploadPromises = selectedDocs.map(async (doc) => {
+        if (!doc.file) {
+          return {
+            ...doc,
+            fileName: `(완료) ${doc.fileName || doc.name}`
+          };
+        }
 
-      setProcessedDocs(processedFiles);
+        const formData = new FormData();
+        formData.append('prompt', "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요.");
+        formData.append('images', doc.file);
+
+        const geminiResponse = await axios.post(
+            '/api/gemini/generate',
+            formData,
+            {
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+            }
+        );
+
+        // 텍스트 파일 생성 및 다운로드
+        const textContent = geminiResponse.data.response;
+        const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+        const fileName = doc.fileName.replace(/\.[^/.]+$/, '') + '.txt';
+        const url = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        return {
+          ...doc,
+          fileName: `(완료) ${fileName}`
+        };
+      });
+
+      const results = await Promise.all(uploadPromises);
+      setProcessedDocs(results);
     } catch (error) {
       console.error('문서 처리 중 오류:', error);
       alert('문서 처리 중 오류가 발생했습니다.');
@@ -116,7 +156,6 @@ function MainPage() {
       setIsLoading(false);
     }
   };
-
 
   return (
       <Container>
