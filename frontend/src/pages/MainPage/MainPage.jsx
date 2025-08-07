@@ -104,7 +104,6 @@ function MainPage() {
     setIsLoading(true);
     try {
       const uploadPromises = selectedDocs.map(async (doc) => {
-        // 파일 이름 안전하게 가져오기
         const originalFileName = doc.fileName || doc.name || 'untitled';
 
         const formData = new FormData();
@@ -121,15 +120,16 @@ function MainPage() {
             }
         );
 
-        // 텍스트 파일 생성
-        const textContent = geminiResponse.data.response;
-        const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+        // geminiResponse.data가 직접 텍스트 내용
+        const textContent = geminiResponse.data;
+        if (!textContent) {
+          throw new Error('Gemini API 응답이 비어있습니다.');
+        }
 
-        // 파일 이름에서 확장자 제거하고 .txt 추가
+        const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
         const baseFileName = originalFileName.split('.')[0];
         const newFileName = `${baseFileName}.txt`;
 
-        // 다운로드 실행
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.style.display = 'none';
