@@ -6,25 +6,29 @@ import com.google.genai.types.GenerateContentResponse;
 import com.google.genai.types.Part;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
-public class GenimiService {
+public class GeminiService {
 
-    public String connectGenimi() {
+    public String extractTextFromImageByGemini(String prompt, MultipartFile image) {
         try {
             Client client = new Client();
 
-            // 이미지 파일 읽기
-            byte[] imageBytes = Files.readAllBytes(Path.of(
-                "D:\\project\\generated_AI_Challenge\\AI-Challenge\\image\\KakaoTalk_20250723_185022746.jpg"));
+            // 이미지 파일을 바이트 배열로 변환
+            byte[] imageBytes = image.getBytes();
 
             // Content 객체 생성
             Content content = Content.fromParts(
-                Part.fromText("이미지에서 모든 텍스트를 추출하고 깔끔하게 정렬해주세요."),
-                Part.fromBytes(imageBytes, "image/jpeg")
+                Part.fromText(prompt),
+                Part.fromBytes(imageBytes, image.getContentType())
             );
 
             // API 호출
@@ -34,16 +38,15 @@ public class GenimiService {
                 null
             );
 
-            // 결과 출력
-            System.out.println(response.text());
+            log.info("이미지 처리 완료: {}", image.getOriginalFilename());
             return response.text();
 
         } catch (Exception e) {
-            System.err.println("에러 발생: " + e.getMessage());
-            e.printStackTrace();
-            return null;
+            log.error("이미지 처리 중 오류 발생: {}", image.getOriginalFilename(), e);
+            throw new RuntimeException("이미지 처리 중 오류가 발생했습니다.", e);
         }
-
     }
+
+
 
 }
