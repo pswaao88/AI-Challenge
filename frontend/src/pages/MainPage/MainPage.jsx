@@ -103,37 +103,20 @@ function MainPage() {
 
     setIsLoading(true);
     try {
-      const uploadPromises = selectedDocs.map(async (doc) => {
-        if (!doc.file) {
-          return {
-            ...doc,
-            fileName: `(완료) ${doc.fileName || doc.name}`
-          };
-        }
+      const processedFiles = selectedDocs.map(doc => ({
+        fileName: doc.fileName || doc.name,
+        file: doc.file
+      }));
 
-        const formData = new FormData();
-        formData.append('file', doc.file);
-        const response = await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-
-        return {
-          ...response.data,
-          fileName: `(완료) ${response.data.fileName || response.data.name}`
-        };
-      });
-
-      const results = await Promise.all(uploadPromises);
-      setProcessedDocs(results);
+      setProcessedDocs(processedFiles);
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('문서 처리 중 오류:', error);
       alert('문서 처리 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
   };
+
 
   return (
       <Container>
