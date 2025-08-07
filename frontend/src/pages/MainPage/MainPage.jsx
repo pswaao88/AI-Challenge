@@ -104,12 +104,8 @@ function MainPage() {
     setIsLoading(true);
     try {
       const uploadPromises = selectedDocs.map(async (doc) => {
-        if (!doc.file) {
-          return {
-            ...doc,
-            fileName: `(완료) ${doc.fileName || doc.name}`
-          };
-        }
+        // 파일 이름 안전하게 가져오기
+        const originalFileName = doc.fileName || doc.name || 'untitled';
 
         const formData = new FormData();
         formData.append('prompt', "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요.");
@@ -125,16 +121,20 @@ function MainPage() {
             }
         );
 
-        // 텍스트 파일 생성 및 다운로드
+        // 텍스트 파일 생성
         const textContent = geminiResponse.data.response;
         const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
-        const fileName = doc.fileName.replace(/\.[^/.]+$/, '') + '.txt';
-        const url = window.URL.createObjectURL(blob);
 
+        // 파일 이름에서 확장자 제거하고 .txt 추가
+        const baseFileName = originalFileName.split('.')[0];
+        const newFileName = `${baseFileName}.txt`;
+
+        // 다운로드 실행
+        const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        a.download = fileName;
+        a.download = newFileName;
         document.body.appendChild(a);
         a.click();
 
@@ -143,7 +143,7 @@ function MainPage() {
 
         return {
           ...doc,
-          fileName: `(완료) ${fileName}`
+          fileName: `(완료) ${originalFileName}`
         };
       });
 
