@@ -31,7 +31,7 @@ public class GeminiController {
 
     @PostMapping("/generate")
     public ResponseEntity<List<Map<String, String>>> generateResponse(
-        @RequestBody Map<String, String> request,
+        @RequestParam Map<String, String> request,
         @RequestParam("images") List<MultipartFile> images) {
         try {
             String prompt = request.get("prompt");
