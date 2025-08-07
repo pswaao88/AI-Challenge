@@ -133,30 +133,19 @@ const ResponseText = styled.pre`
 function ProcessedDocs({ docs, isLoading }) {
   const handleDownload = async (doc) => {
     try {
-      // 1. Gemini API 호출
-      const formData = new FormData();
-      formData.append('prompt', "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요.");
-      formData.append('images', doc.file);
+      if (!doc.response) {
+        throw new Error('응답 데이터가 없습니다');
+      }
 
-      const geminiResponse = await axios.post(
-          `/api/gemini/generate`,
-          formData,
-          {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          }
-      );
-
-      // 2. 텍스트 파일 생성
-      const textContent = geminiResponse.data.response;
+      // 텍스트 파일 생성
+      const textContent = doc.response;
       const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
 
-      // 3. 다운로드 링크 생성
-      const fileName = doc.fileName.replace('(완료) ', '').replace(/\.[^/.]+$/, '') + '.docx';
-      const url = window.URL.createObjectURL(new Blob([docxResponse.data]));
+      // 다운로드 링크 생성
+      const fileName = doc.fileName.replace(/\.[^/.]+$/, '') + '.txt';
+      const url = window.URL.createObjectURL(blob);
 
-      // 4. 다운로드 실행
+      // 다운로드 실행
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
@@ -164,13 +153,13 @@ function ProcessedDocs({ docs, isLoading }) {
       document.body.appendChild(a);
       a.click();
 
-      // 5. 정리
+      // 정리
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
     } catch (error) {
-      console.error('Error processing document:', error);
-      alert('문서 처리 중 오류가 발생했습니다.');
+      console.error('다운로드 처리 중 오류:', error);
+      alert(`문서 처리 중 오류가 발생했습니다: ${error.message}`);
     }
   };
 
@@ -181,10 +170,13 @@ function ProcessedDocs({ docs, isLoading }) {
             <LoadingSpinner />
         ) : (
             <DocList>
-              {Array.isArray(docs) && docs.map(doc => (
-                  <DocItem key={doc.id}>
+              {Array.isArray(docs) && docs.map((doc, index) => (
+                  <DocItem key={index}>
                     <DocName>{doc.fileName}</DocName>
-                    <DownloadButton onClick={() => handleDownload(doc)}>
+                    <DownloadButton
+                        onClick={() => handleDownload(doc)}
+                        disabled={!doc.response}
+                    >
                       다운로드
                     </DownloadButton>
                   </DocItem>
@@ -194,6 +186,7 @@ function ProcessedDocs({ docs, isLoading }) {
       </Container>
   );
 }
+
 
 
 export default ProcessedDocs;
