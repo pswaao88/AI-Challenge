@@ -148,16 +148,9 @@ function ProcessedDocs({ docs, isLoading }) {
           }
       );
 
-      // 2. Gemini 응답을 docx로 변환
-      const docxResponse = await axios.post(
-          `/api/document/convert`,
-          {
-            markdownContent: geminiResponse.data
-          },
-          {
-            responseType: 'blob'  // 바이너리 데이터로 받기
-          }
-      );
+      // 2. 텍스트 파일 생성
+      const textContent = geminiResponse.data.response;
+      const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
 
       // 3. 다운로드 링크 생성
       const fileName = doc.fileName.replace('(완료) ', '').replace(/\.[^/.]+$/, '') + '.docx';
