@@ -120,13 +120,13 @@ function MainPage() {
             }
         );
 
-        // geminiResponse.data가 직접 텍스트 내용
-        const textContent = geminiResponse.data;
-        if (!textContent) {
+        // 응답에서 텍스트 내용 추출
+        const responseText = geminiResponse.data.response;
+        if (!responseText) {
           throw new Error('Gemini API 응답이 비어있습니다.');
         }
 
-        const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+        const blob = new Blob([responseText], { type: 'text/plain;charset=utf-8' });
         const baseFileName = originalFileName.split('.')[0];
         const newFileName = `${baseFileName}.txt`;
 
@@ -142,8 +142,8 @@ function MainPage() {
         document.body.removeChild(a);
 
         return {
-          ...doc,
-          fileName: `(완료) ${originalFileName}`
+          fileName: originalFileName,
+          response: responseText
         };
       });
 
