@@ -1,6 +1,7 @@
 // src/components/ProcessedDocs/ProcessedDocs.jsx
 import React from 'react';
 import styled from 'styled-components';
+import axios from 'axios';
 
 const Container = styled.div`
   width: 100%;
@@ -103,32 +104,82 @@ const LoadingSpinner = styled.div`
   }
 `;
 
+const ResultContainer = styled.div`
+  width: 100%;
+  padding: 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fff;
+`;
+const ResultItem = styled.div`
+  margin-bottom: 20px;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+`;
+
+const FileName = styled.h3`
+  color: #333;
+  margin-bottom: 10px;
+`;
+
+const ResponseText = styled.pre`
+  white-space: pre-wrap;
+  background-color: #f8f9fa;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 14px;
+`;
+
 function ProcessedDocs({ docs, isLoading }) {
-  const handleDownload = (doc) => {
-    // 빈 .docx 파일 생성
-    const blob = new Blob([''], {
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    });
+  const handleDownload = async (doc) => {
+    try {
+      // 1. Gemini API 호출
+      const formData = new FormData();
+      formData.append('prompt', "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요.");
+      formData.append('images', doc.file);
 
-    // 파일 이름 설정 (원본 문서 이름에서 '(완료)' 제거하고 .docx 확장자 추가)
-    const fileName = doc.fileName.replace('(완료) ', '').replace(/\.[^/.]+$/, '') + '.docx';
+      const geminiResponse = await axios.post(
+          `/api/gemini/generate`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+      );
 
-    // 다운로드 링크 생성
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = fileName;
+      // 2. Gemini 응답을 docx로 변환
+      const docxResponse = await axios.post(
+          `/api/document/convert`,
+          {
+            markdownContent: geminiResponse.data
+          },
+          {
+            responseType: 'blob'  // 바이너리 데이터로 받기
+          }
+      );
 
-    // 다운로드 실행
-    document.body.appendChild(a);
-    a.click();
+      // 3. 다운로드 링크 생성
+      const fileName = doc.fileName.replace('(완료) ', '').replace(/\.[^/.]+$/, '') + '.docx';
+      const url = window.URL.createObjectURL(new Blob([docxResponse.data]));
 
-    // 정리
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+      // 4. 다운로드 실행
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+
+      // 5. 정리
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+    } catch (error) {
+      console.error('Error processing document:', error);
+      alert('문서 처리 중 오류가 발생했습니다.');
+    }
   };
-
 
   return (
       <Container>
@@ -137,9 +188,9 @@ function ProcessedDocs({ docs, isLoading }) {
             <LoadingSpinner />
         ) : (
             <DocList>
-              {Array.isArray(docs) && docs.map(doc => (  // 배열 체크 추가
+              {Array.isArray(docs) && docs.map(doc => (
                   <DocItem key={doc.id}>
-                    <DocName>{doc.fileName}</DocName>  {/* doc.name을 doc.fileName으로 변경 */}
+                    <DocName>{doc.fileName}</DocName>
                     <DownloadButton onClick={() => handleDownload(doc)}>
                       다운로드
                     </DownloadButton>
@@ -149,7 +200,7 @@ function ProcessedDocs({ docs, isLoading }) {
         )}
       </Container>
   );
-
 }
+
 
 export default ProcessedDocs;
