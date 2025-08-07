@@ -110,6 +110,8 @@ function MainPage() {
         formData.append('prompt', "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요.");
         formData.append('images', doc.file);
 
+        // API 호출 응답 로그
+        console.log('Processing file:', originalFileName);
         const geminiResponse = await axios.post(
             '/api/gemini/generate',
             formData,
@@ -120,10 +122,13 @@ function MainPage() {
             }
         );
 
-        // 응답에서 텍스트 내용 추출
-        const responseText = geminiResponse.data.response;
+        console.log('API Response:', geminiResponse.data);  // 응답 확인용 로그
+
+        // API 응답이 직접 텍스트로 오는 경우
+        const responseText = geminiResponse.data;
         if (!responseText) {
-          throw new Error('Gemini API 응답이 비어있습니다.');
+          console.error('Empty response for file:', originalFileName);
+          throw new Error(`${originalFileName} 처리 중 빈 응답이 왔습니다.`);
         }
 
         const blob = new Blob([responseText], { type: 'text/plain;charset=utf-8' });
@@ -151,7 +156,7 @@ function MainPage() {
       setProcessedDocs(results);
     } catch (error) {
       console.error('문서 처리 중 오류:', error);
-      alert('문서 처리 중 오류가 발생했습니다.');
+      alert(error.message || '문서 처리 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
