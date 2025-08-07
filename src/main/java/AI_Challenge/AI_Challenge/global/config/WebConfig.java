@@ -12,7 +12,8 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/api/**")  // /api로 시작하는 모든 경로에 대해
             .allowedOrigins(
                 "http://localhost:3000",  // 프론트엔드 개발 서버
-                "http://localhost"        // 도커 환경
+                "http://localhost",        // 도커 환경
+                "http://168.188.124.140:40001"
             )
             .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
             .allowedHeaders("*")

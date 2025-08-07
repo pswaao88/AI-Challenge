@@ -133,19 +133,34 @@ const ResponseText = styled.pre`
 function ProcessedDocs({ docs, isLoading }) {
   const handleDownload = async (doc) => {
     try {
-      if (!doc.response) {
-        throw new Error('응답 데이터가 없습니다');
+      // 1. Gemini API 호출
+      const formData = new FormData();
+      formData.append('prompt', "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요.");
+      formData.append('images', doc.file);
+
+      const geminiResponse = await axios.post(
+          `/api/gemini/generate`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+      );
+
+      if (!geminiResponse.data || !geminiResponse.data.response) {
+        throw new Error('Gemini API 응답이 올바르지 않습니다.');
       }
 
-      // 텍스트 파일 생성
-      const textContent = doc.response;
+      // 2. 텍스트 파일 생성
+      const textContent = geminiResponse.data.response;
       const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
 
-      // 다운로드 링크 생성
+      // 3. 다운로드 링크 생성
       const fileName = doc.fileName.replace(/\.[^/.]+$/, '') + '.txt';
       const url = window.URL.createObjectURL(blob);
 
-      // 다운로드 실행
+      // 4. 다운로드 실행
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
@@ -153,13 +168,22 @@ function ProcessedDocs({ docs, isLoading }) {
       document.body.appendChild(a);
       a.click();
 
-      // 정리
+      // 5. 정리
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
     } catch (error) {
       console.error('다운로드 처리 중 오류:', error);
-      alert(`문서 처리 중 오류가 발생했습니다: ${error.message}`);
+      if (error.response) {
+        // 서버 응답이 있는 경우
+        alert(`서버 오류: ${error.response.data.message || '알 수 없는 오류가 발생했습니다.'}`);
+      } else if (error.request) {
+        // 요청은 보냈지만 응답을 받지 못한 경우
+        alert('서버와 통신할 수 없습니다. 네트워크 연결을 확인해주세요.');
+      } else {
+        // 요청 설정 중 오류가 발생한 경우
+        alert(`오류 발생: ${error.message}`);
+      }
     }
   };
 
@@ -175,7 +199,7 @@ function ProcessedDocs({ docs, isLoading }) {
                     <DocName>{doc.fileName}</DocName>
                     <DownloadButton
                         onClick={() => handleDownload(doc)}
-                        disabled={!doc.response}
+                        disabled={!doc.file}
                     >
                       다운로드
                     </DownloadButton>
@@ -186,7 +210,5 @@ function ProcessedDocs({ docs, isLoading }) {
       </Container>
   );
 }
-
-
 
 export default ProcessedDocs;
