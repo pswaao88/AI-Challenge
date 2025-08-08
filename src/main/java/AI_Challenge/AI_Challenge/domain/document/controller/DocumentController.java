@@ -136,10 +136,10 @@ public class DocumentController {
     public ResponseEntity<byte[]> createAndDownloadDocument(@RequestBody Map<String, Object> request) {
         try {
             Long documentId = Long.valueOf(request.get("documentId").toString());
-            String extractedText = request.get("extractedText").toString();
+            String textContent = request.get("textContent").toString();
 
             // 템플릿에 텍스트를 채워 넣고 바이트 배열로 반환하는 서비스 메서드 호출
-            byte[] processedContent = documentService.createAndDownloadDocument(documentId, extractedText);
+            byte[] processedContent = documentService.createAndDownloadDocument(documentId, textContent);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
