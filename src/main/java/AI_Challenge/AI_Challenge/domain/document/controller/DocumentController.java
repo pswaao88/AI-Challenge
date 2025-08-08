@@ -135,7 +135,7 @@ public class DocumentController {
     @PostMapping("/create-and-download")
     public ResponseEntity<byte[]> createAndDownloadDocument(@RequestBody Map<String, Object> request) {
         try {
-            Long documentId = Long.valueOf(request.get("documentId").toString());
+            Long documentId = Long.parseLong(request.get("documentId").toString());
             String textContent = request.get("textContent").toString();
 
             // 템플릿에 텍스트를 채워 넣고 바이트 배열로 반환하는 서비스 메서드 호출
