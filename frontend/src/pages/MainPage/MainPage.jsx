@@ -188,16 +188,13 @@ function MainPage() {
       const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
       let newFileName = 'processed_document.docx';
 
-      // 서버 응답 헤더에서 파일명을 가져오거나
-      if (fileNameMatch && fileNameMatch[1]) {
-        newFileName = fileNameMatch[1];
-      } else {
-        // 서버가 파일명을 반환하지 않으면, 클라이언트에서 직접 생성
-        // (완료) [원본파일명]_[타임스탬프].docx
-        const originalFileName = selectedDocxDocs[0].name || 'document'; // 선택된 문서 이름 사용
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        newFileName = `(완료) ${originalFileName.replace(/\.docx?$/, '')}_${timestamp}.docx`;
-      }
+
+      // 우선 클라이언트에서 직접 생성
+      // (완료) [원본파일명].docx
+      const originalFileName = selectedDocxDocs[0].name || 'document'; // 선택된 문서 이름 사용
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      newFileName = `(완료) ${originalFileName.replace(/\.docx?$/, '')}.docx`;
+
       setResultFileName(newFileName);
 
       // 실시간 결과 표시
