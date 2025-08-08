@@ -135,13 +135,6 @@ public class DocumentController {
     @PostMapping("/create-and-download")
     public ResponseEntity<byte[]> createAndDownloadDocument(@RequestBody Map<String, Object> request) {
         try {
-
-            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            System.out.println("요청 본문 전체: " + request); // 전체 맵 출력
-            System.out.println("요청 본문 타입: " + request.getClass().getName()); // Map의 실제 타입을 확인
-            System.out.println("documentId 값: " + request.get("documentId")); // 값만 출력
-            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-
             // documentId를 안전하게 Long으로 변환
             Long documentId = Long.valueOf(request.get("documentId").toString());
             String textContent = request.get("textContent").toString();
