@@ -254,7 +254,7 @@ function MainPage() {
               )}
 
               <ProcessedDocs
-                  realtimeDocs={processedDocs}
+                  docs={processedDocs} // <-- 'realtimeDocs' 대신 'docs'로 변경
                   isLoading={isLoading}
               />
             </Step>

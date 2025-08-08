@@ -96,27 +96,25 @@ const DocItem = styled.div`
   gap: 20px;
 `;
 
-function ProcessedDocs({ realtimeDocs, isLoading }) {
-  // 기존 state(processedFiles, isRefreshing) 및 useEffect 제거
-
+function ProcessedDocs({ docs, isLoading }) {
   return (
       <Container>
-        <Title>처리 결과</Title> {/* 제목 변경 */}
+        <Title>처리 결과</Title>
 
         {isLoading ? (
             <LoadingSpinner />
         ) : (
             <DocList>
               {/* 실시간 처리 결과만 표시 */}
-              {Array.isArray(realtimeDocs) && realtimeDocs.length > 0 && (
+              {Array.isArray(docs) && docs.length > 0 && ( // <-- 'realtimeDocs' 대신 'docs'로 변경
                   <ResultItem>
-                    <FileName>🆕 {realtimeDocs[0]?.fileName}</FileName>
-                    <ResponseText>{realtimeDocs[0]?.response}</ResponseText>
+                    <FileName>🆕 {docs[0]?.fileName}</FileName>
+                    <ResponseText>{docs[0]?.response}</ResponseText>
                   </ResultItem>
               )}
 
               {/* 실시간 결과가 없을 때 메시지 */}
-              {!isLoading && realtimeDocs.length === 0 && (
+              {!isLoading && docs.length === 0 && ( // <-- 'realtimeDocs' 대신 'docs'로 변경
                   <DocItem>
                     <FileName>처리된 결과가 없습니다.</FileName>
                   </DocItem>
