@@ -154,7 +154,7 @@ function MainPage() {
           "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요. 추출된 텍스트를 기반으로 문서를 작성해주세요.",
           uploadedImages
       );
-      const extractedText = geminiResponse.data;
+      const extractedText = geminiResponse.data.map(item => item.response).join('\n\n');
       console.log(extractedText);
       // 2. 선택된 DOCX 문서들을 서버에 업로드
       const uploadedDocuments = [];
@@ -174,7 +174,12 @@ function MainPage() {
       const selectedDocId = uploadedDocuments[0].id;
       const selectedDocName = uploadedDocuments[0].fileName;
 
-      const processResponse = await createAndDownloadDocument(selectedDocId, extractedText);
+      const requestData = {
+        documentId: selectedDocId,
+        textContent: extractedText // 이제 textContent는 결합된 문자열입니다.
+      };
+
+      const processResponse = await createAndDownloadDocument(requestData);
 
       // 처리된 파일의 다운로드 URL 생성
       const url = window.URL.createObjectURL(new Blob([processResponse.data]));
