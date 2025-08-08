@@ -191,10 +191,7 @@ function MainPage() {
 
       // 우선 클라이언트에서 직접 생성
       // (완료) [원본파일명].docx
-      const originalFileName = selectedDocxDocs[0].name || 'document'; // 선택된 문서 이름 사용
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      newFileName = `(완료) ${originalFileName.replace(/\.docx?$/, '')}.docx`;
-
+      newFileName = `(완료) ${selectedDocName.replace(/\.docx?$/, '')}.docx`;
       setResultFileName(newFileName);
 
       // 실시간 결과 표시
