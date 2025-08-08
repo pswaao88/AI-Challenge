@@ -135,6 +135,9 @@ public class DocumentController {
     @PostMapping("/create-and-download")
     public ResponseEntity<byte[]> createAndDownloadDocument(@RequestBody Map<String, Object> request) {
         try {
+            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            System.out.println(request.get("documentId").toString());
+            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             Long documentId = Long.parseLong(request.get("documentId").toString());
             String textContent = request.get("textContent").toString();
 
