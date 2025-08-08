@@ -9,8 +9,15 @@ services:
     environment:
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=ai_challenge_db           # DB 이름 고정 (필수)
+      - MYSQL_HOST=db
+
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+
+      - DOCUMENT_UPLOAD_PATH=/app/documents
+      - DOCUMENT_RESULT_PATH=/app/document-result
+
       # Spring Boot DevTools가 원격 클라이언트에서도 재시작을 허용하도록 설정
       - SPRING_PROFILES_ACTIVE=dev # 개발 프로파일 활성화
       - SPRING_DEVTOOLS_REMOTE_SECRET=1111
@@ -19,7 +26,8 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - /home/pswaao/Desktop/project/AI-challenge/document-upload:/app/document-upload # 기존 파일 업로드 볼륨
+      - /home/pswaao/Desktop/project/AI-challenge/document-upload:/app/document-upload   # 업로드 폴더 마운트
+      - /home/pswaao/Desktop/project/AI-challenge/document-result:/app/document-result  # 결과 폴더 마운트
       - ./:/app/src-dev # <-- 이 라인 추가: 호스트의 백엔드 소스 코드를 컨테이너의 /app에 마운트
     networks:
       - ai-challenge-network # 네트워크 정의 추가 (아직 없으면 아래 networks 섹션도 확인)

@@ -22,7 +22,10 @@ spring:
 
 document:
   upload:
-    path: /app/document-upload
+    path: ${DOCUMENT_UPLOAD_PATH:/app/document-upload}    # 업로드 경로
+  result:
+    path: ${DOCUMENT_RESULT_PATH:/app/document-result}
+
 
 openai:
   api:
