@@ -26,7 +26,7 @@ services:
 
   db: # 데이터베이스 서비스
     image: mysql:8.0
-    container_name: ai-challenge-db # 컨테이너 이름 추가 (선택 사항이지만 명확성을 위해)
+    container_name: ai-challenge-db # 컨테이너 이름 추가
     ports:
       - "3306:3306"
     environment:

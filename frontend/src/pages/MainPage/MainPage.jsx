@@ -13,14 +13,12 @@ const Container = styled.div`
   padding: 16px;  // 20px의 80%
 `;
 
-
 const Title = styled.h1`
   text-align: center;
   margin-bottom: 32px;  // 40px의 80%
   color: #333;
   font-size: 2rem;  // 2.5rem의 80%
 `;
-
 
 const Section = styled.section`
   padding: 30px;  // 40px의 80%
@@ -32,7 +30,6 @@ const Section = styled.section`
   overflow-y: auto;
 `;
 
-
 const ProcessFlow = styled.div`
   display: flex;
   justify-content: space-between;
@@ -41,7 +38,6 @@ const ProcessFlow = styled.div`
   text-align: center;
   padding: 0 32px;  // 40px의 80%
 `;
-
 
 const Step = styled.div`
   flex: 1;
@@ -94,9 +90,22 @@ const ErrorMessage = styled.div`
 
 function MainPage() {
   const [selectedDocs, setSelectedDocs] = useState([]);
+  const [uploadedImages, setUploadedImages] = useState([]); // 이미지 상태 추가
+  const [selectedDocxDocs, setSelectedDocxDocs] = useState([]); // DocSelector에서 선택된 docx 상태 추가
   const [processedDocs, setProcessedDocs] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errors] = useState([]);
+
+  // 이미지 업로드 핸들러
+  const handleImagesChange = (images) => {
+    setUploadedImages(images);
+    setSelectedDocs(images); // 기존 로직 유지
+  };
+
+  // DocSelector에서 docx 선택 핸들러
+  const handleDocxSelect = (docs) => {
+    setSelectedDocxDocs(docs);
+  };
 
   const handleProcessDocs = async () => {
     if (selectedDocs.length === 0) return;
@@ -158,29 +167,37 @@ function MainPage() {
     }
   };
 
+  // 화살표 활성화 조건: 이미지 1개 이상 && docx 1개 이상
+  const canProceed = uploadedImages.length > 0 && selectedDocxDocs.length > 0;
+
   return (
       <Container>
         <Title>AI Challenge</Title>
         <Section>
           <ProcessFlow>
             <Step>
-              <StepNumber>Step 1</StepNumber>
-              <ImageUpload onFilesChange={setSelectedDocs} />
+              <StepNumber>1. 이미지 업로드</StepNumber>
+              <ImageUpload onFilesChange={handleImagesChange} />
             </Step>
             <Step>
-              <StepNumber>Step 2</StepNumber>
+              <StepNumber>2. 문서 업로드 및 선택</StepNumber>
               <DocSelector
-                  onDocsSelect={setSelectedDocs}
+                  onDocsSelect={handleDocxSelect}
               />
             </Step>
             <ArrowButton
                 onClick={handleProcessDocs}
-                disabled={selectedDocs.length === 0 || isLoading}
+                disabled={!canProceed || isLoading}
+                title={
+                  canProceed
+                      ? '문서 처리 시작'
+                      : '이미지 1개 이상 업로드 및 docx 1개 이상 선택해주세요'
+                }
             >
               →
             </ArrowButton>
             <Step>
-              <StepNumber>Step 3</StepNumber>
+              <StepNumber>3. 결과 및 다운로드</StepNumber>
               {errors.length > 0 && (
                   <div>
                     {errors.map((error, index) => (
