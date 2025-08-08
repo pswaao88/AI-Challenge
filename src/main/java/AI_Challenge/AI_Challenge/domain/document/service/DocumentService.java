@@ -190,7 +190,7 @@ public class DocumentService {
 
         // 현재 시간을 포함한 파일명 생성
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        return String.format("processed_%s_%s%s", nameWithoutExt, timestamp, extension);
+        return String.format("(완료)%s_%s%s", nameWithoutExt, timestamp, extension);
     }
 
     // Markdown을 DOCX로 변환 (추후 구현)

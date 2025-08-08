@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react'; // useState, useEffect 제거
 import styled from 'styled-components';
-import { fetchProcessedDocuments, downloadProcessedDocument } from '../../services/documentService';
+// fetchProcessedDocuments, downloadProcessedDocument 제거
 
 const Container = styled.div`
   width: 100%;
@@ -38,54 +38,12 @@ const DocList = styled.div`
   }
 `;
 
-const DocItem = styled.div`
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  margin-bottom: 12px;
-  background: white;
-  border-radius: 4px;
-  border: 1px solid #ddd;
-  gap: 20px;
-`;
-
-const DocName = styled.span`
-  flex: 1;
-  font-size: 0.9rem;
-  color: #444;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
-const DownloadButton = styled.button`
-  background-color: #17a2b8;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-  min-width: 100px;
-
-  &:hover {
-    background-color: #138496;
-    transform: translateY(-2px);
-  }
-
-  &:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-  }
-`;
-
 const LoadingSpinner = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 200px;
-
+  
   &:after {
     content: '';
     width: 40px;
@@ -127,94 +85,40 @@ const ResponseText = styled.pre`
   margin: 0;
 `;
 
-const RefreshButton = styled.button`
-  background-color: #28a745;
-  color: white;
-  border: none;
+const DocItem = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  background: white;
   border-radius: 4px;
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  margin-bottom: 15px;
-  width: 100%;
-
-  &:hover {
-    background-color: #218838;
-  }
+  border: 1px solid #ddd;
+  gap: 20px;
 `;
 
-function ProcessedDocs({ realtimeDocs, isLoading }) { // Prop 이름 변경
-  const [processedFiles, setProcessedFiles] = useState([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  useEffect(() => {
-    loadProcessedFiles();
-  }, []);
-
-  const loadProcessedFiles = async () => {
-    setIsRefreshing(true);
-    try {
-      const response = await fetchProcessedDocuments();
-      setProcessedFiles(response.data);
-    } catch (error) {
-      console.error('처리된 문서 목록 로딩 에러:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const handleDownload = async (fileName) => {
-    try {
-      const response = await downloadProcessedDocument(fileName);
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('파일 다운로드 에러:', error);
-      alert('파일 다운로드 중 오류가 발생했습니다.');
-    }
-  };
+function ProcessedDocs({ realtimeDocs, isLoading }) {
+  // 기존 state(processedFiles, isRefreshing) 및 useEffect 제거
 
   return (
       <Container>
-        <Title>처리 결과 및 저장된 문서</Title>
+        <Title>처리 결과</Title> {/* 제목 변경 */}
 
         {isLoading ? (
             <LoadingSpinner />
         ) : (
             <DocList>
-              {/* 실시간 처리 결과 표시 */}
+              {/* 실시간 처리 결과만 표시 */}
               {Array.isArray(realtimeDocs) && realtimeDocs.length > 0 && (
                   <ResultItem>
-                    <FileName>🆕 실시간 처리 결과 (새로고침 시 사라집니다)</FileName>
+                    <FileName>🆕 {realtimeDocs[0]?.fileName}</FileName>
                     <ResponseText>{realtimeDocs[0]?.response}</ResponseText>
                   </ResultItem>
               )}
 
-              <RefreshButton onClick={loadProcessedFiles} disabled={isRefreshing}>
-                {isRefreshing ? '목록 새로고침 중...' : '저장된 문서 목록 새로고침'}
-              </RefreshButton>
-
-              {/* 서버에 저장된 처리된 파일들 표시 */}
-              {Array.isArray(processedFiles) && processedFiles.map((file, index) => (
-                  <DocItem key={`processed-${index}`}>
-                    <DocName>📄 {file.fileName}</DocName>
-                    <DownloadButton onClick={() => handleDownload(file.fileName)}>
-                      다운로드
-                    </DownloadButton>
-                  </DocItem>
-              ))}
-
-              {/* 빈 상태 메시지 */}
-              {!isLoading && !isRefreshing && realtimeDocs.length === 0 && processedFiles.length === 0 && (
+              {/* 실시간 결과가 없을 때 메시지 */}
+              {!isLoading && realtimeDocs.length === 0 && (
                   <DocItem>
-                    <DocName>처리된 문서가 없습니다.</DocName>
+                    <FileName>처리된 결과가 없습니다.</FileName>
                   </DocItem>
               )}
             </DocList>

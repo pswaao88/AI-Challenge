@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import DocSelector from "../../components/DocSelector/DocSelector";
 import ImageUpload from '../../components/FileUpload/ImageUpload';
 import ProcessedDocs from '../../components/ProcessedDocs/ProcessedDocs';
-import { processImageWithGemini, uploadDocument, createAndDownloadDocument } from '../../services/documentService'; // createAndDownloadDocument 함수 추가
+import { processImageWithGemini, uploadDocument, createAndDownloadDocument } from '../../services/documentService';
 
 const Container = styled.div`
   max-width: 1440px;
@@ -98,6 +98,22 @@ const ErrorMessage = styled.div`
   border-radius: 3px;
 `;
 
+// 다운로드 버튼 컴포넌트
+const DownloadButton = styled.a`
+  display: inline-block;
+  background-color: #17a2b8;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 5px;
+  text-decoration: none;
+  margin-top: 10px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #138496;
+  }
+`;
+
 function MainPage() {
   const [uploadedImages, setUploadedImages] = useState([]);
   const [selectedDocxDocs, setSelectedDocxDocs] = useState([]);
@@ -106,6 +122,7 @@ function MainPage() {
   const [errors, setErrors] = useState([]);
   const [processingStatus, setProcessingStatus] = useState('');
   const [downloadUrl, setDownloadUrl] = useState(null); // 다운로드 URL 상태 추가
+  const [resultFileName, setResultFileName] = useState(''); // 파일명 상태 추가
 
   const handleImagesChange = (images) => {
     setUploadedImages(images);
@@ -126,7 +143,8 @@ function MainPage() {
     setIsLoading(true);
     setErrors([]);
     setProcessedDocs([]);
-    setDownloadUrl(null); // 새로운 처리 시작 시 다운로드 URL 초기화
+    setDownloadUrl(null); // 새 작업 시작 시 다운로드 URL 초기화
+    setResultFileName(''); // 새 작업 시작 시 파일명 초기화
 
     try {
       setProcessingStatus('이미지에서 텍스트를 추출하고 있습니다...');
@@ -138,7 +156,7 @@ function MainPage() {
       );
       const extractedText = geminiResponse.data;
 
-      // 2. 선택된 DOCX 문서들을 서버에 업로드 (이미지 텍스트와 결합하기 위함)
+      // 2. 선택된 DOCX 문서들을 서버에 업로드
       const uploadedDocuments = [];
       for (let doc of selectedDocxDocs) {
         if (doc.file) { // 새로 업로드한 파일인 경우
@@ -153,23 +171,27 @@ function MainPage() {
       // 3. 서버에 최종 문서 생성 및 다운로드 요청
       setProcessingStatus('최종 문서를 생성하고 있습니다...');
 
-      // 첫 번째 선택된 문서 템플릿만 사용하도록 가정
       const selectedDocId = uploadedDocuments[0].id;
       const selectedDocName = uploadedDocuments[0].fileName;
 
-      // 서버에 텍스트와 템플릿 ID를 보내서 문서 생성 후 바로 다운로드
       const processResponse = await createAndDownloadDocument(selectedDocId, extractedText);
 
       // 처리된 파일의 다운로드 URL 생성
       const url = window.URL.createObjectURL(new Blob([processResponse.data]));
       setDownloadUrl(url);
 
+      // 서버에서 반환한 파일 이름을 받아서 저장
+      const contentDisposition = processResponse.headers['content-disposition'];
+      const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+      const newFileName = fileNameMatch ? fileNameMatch[1] : 'processed_document.docx';
+      setResultFileName(newFileName);
+
       // 실시간 결과 표시
       setProcessedDocs([{
-        fileName: `processed_${selectedDocName}`,
-        response: extractedText // 추출된 텍스트를 결과로 표시
+        fileName: newFileName,
+        response: extractedText
       }]);
-      setProcessingStatus('');
+      setProcessingStatus('문서 처리가 완료되었습니다.');
 
     } catch (error) {
       console.error('문서 처리 중 전체 오류:', error);
@@ -224,15 +246,15 @@ function MainPage() {
                   </div>
               )}
 
-              {/* 다운로드 버튼은 실시간 결과가 있을 때만 표시 */}
+              {/* 실시간 결과가 있을 때만 다운로드 버튼 표시 */}
               {downloadUrl && (
-                  <a href={downloadUrl} download={processedDocs[0]?.fileName}>
-                    <button>결과 파일 다운로드</button>
-                  </a>
+                  <DownloadButton href={downloadUrl} download={resultFileName}>
+                    결과 파일 다운로드
+                  </DownloadButton>
               )}
 
               <ProcessedDocs
-                  realtimeDocs={processedDocs} // Prop 이름 변경
+                  realtimeDocs={processedDocs}
                   isLoading={isLoading}
               />
             </Step>
