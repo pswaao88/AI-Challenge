@@ -13,6 +13,20 @@ export const apiClient = axios.create({
   },
 });
 
+// 파일 업로드 설정
+export const FILE_UPLOAD_CONFIG = {
+  maxFileSize: 10 * 1024 * 1024, // 10MB
+  allowedImageTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+  allowedDocumentTypes: ['.doc', '.docx', '.pdf'],
+};
+
+// UI 설정
+export const UI_CONFIG = {
+  maxItemsPerPage: 20,
+  debounceDelay: 300,
+  animationDuration: 300,
+};
+
 
 export const APP_NAME = "AI Challenge Frontend";
 export const VERSION = "1.0.0";

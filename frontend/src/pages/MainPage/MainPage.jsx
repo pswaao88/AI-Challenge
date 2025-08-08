@@ -1,32 +1,30 @@
-// src/pages/MainPage/MainPage.jsx
 import React, { useState } from 'react';
-import axios from 'axios';
-import { API_BASE_URL } from '../../utils/config';
 import styled from 'styled-components';
 import DocSelector from "../../components/DocSelector/DocSelector";
 import ImageUpload from '../../components/FileUpload/ImageUpload';
 import ProcessedDocs from '../../components/ProcessedDocs/ProcessedDocs';
+import { processImageWithGemini, uploadDocument, processAndDownloadDocument } from '../../services/documentService';
 
 const Container = styled.div`
-  max-width: 1440px;  // 1800px의 80%
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 16px;  // 20px의 80%
+  padding: 16px;
 `;
 
 const Title = styled.h1`
   text-align: center;
-  margin-bottom: 32px;  // 40px의 80%
+  margin-bottom: 32px;
   color: #333;
-  font-size: 2rem;  // 2.5rem의 80%
+  font-size: 2rem;
 `;
 
 const Section = styled.section`
-  padding: 30px;  // 40px의 80%
-  margin-bottom: 32px;  // 40px의 80%
+  padding: 30px;
+  margin-bottom: 32px;
   background-color: white;
-  border-radius: 6px;  // 8px의 80%
+  border-radius: 6px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  max-height: 72vh;  // 90vh의 80%
+  max-height: 72vh;
   overflow-y: auto;
 `;
 
@@ -34,9 +32,9 @@ const ProcessFlow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 48px;  // 60px의 80%
+  gap: 48px;
   text-align: center;
-  padding: 0 32px;  // 40px의 80%
+  padding: 0 32px;
 `;
 
 const Step = styled.div`
@@ -45,29 +43,29 @@ const Step = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  min-width: 320px;  // 400px의 80%
-  padding: 16px;  // 20px의 80%
+  min-width: 320px;
+  padding: 16px;
 `;
 
 const StepNumber = styled.div`
-  font-size: 1.12rem;  // 1.4rem의 80%
+  font-size: 1.12rem;
   color: #666;
-  margin-bottom: 24px;  // 30px의 80%
+  margin-bottom: 24px;
   font-weight: bold;
   width: 100%;
   text-align: center;
-  padding-top: 12px;  // 15px의 80%
+  padding-top: 12px;
 `;
 
 const ArrowButton = styled.button`
   background: none;
   border: none;
-  font-size: 1.6rem;  // 2rem의 80%
+  font-size: 1.6rem;
   color: #28a745;
   cursor: pointer;
-  padding: 8px;  // 10px의 80%
+  padding: 8px;
   transition: transform 0.3s ease;
-  margin-top: 160px;  // 200px의 80%
+  margin-top: 160px;
 
   &:hover {
     transform: scale(1.2);
@@ -76,128 +74,168 @@ const ArrowButton = styled.button`
   &:disabled {
     color: #ccc;
     cursor: not-allowed;
+    transform: none;
   }
+`;
+
+const ProcessingStatus = styled.div`
+  background-color: #e3f2fd;
+  border: 1px solid #2196f3;
+  border-radius: 4px;
+  padding: 15px;
+  margin: 20px 0;
+  text-align: center;
+  color: #1976d2;
+  font-weight: 500;
 `;
 
 const ErrorMessage = styled.div`
   color: #dc3545;
   text-align: center;
-  margin: 8px 0;  // 10px의 80%
-  padding: 8px;  // 10px의 80%
+  margin: 8px 0;
+  padding: 8px;
   background-color: #ffe6e6;
-  border-radius: 3px;  // 4px의 80%
+  border-radius: 3px;
 `;
 
 function MainPage() {
-  const [selectedDocs, setSelectedDocs] = useState([]);
-  const [uploadedImages, setUploadedImages] = useState([]); // 이미지 상태 추가
-  const [selectedDocxDocs, setSelectedDocxDocs] = useState([]); // DocSelector에서 선택된 docx 상태 추가
+  const [uploadedImages, setUploadedImages] = useState([]);
+  const [selectedDocxDocs, setSelectedDocxDocs] = useState([]);
   const [processedDocs, setProcessedDocs] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [errors] = useState([]);
+  const [errors, setErrors] = useState([]);
+  const [processingStatus, setProcessingStatus] = useState('');
 
   // 이미지 업로드 핸들러
   const handleImagesChange = (images) => {
     setUploadedImages(images);
-    setSelectedDocs(images); // 기존 로직 유지
+    setErrors([]); // 에러 초기화
   };
 
   // DocSelector에서 docx 선택 핸들러
   const handleDocxSelect = (docs) => {
     setSelectedDocxDocs(docs);
+    setErrors([]); // 에러 초기화
   };
 
   const handleProcessDocs = async () => {
-    if (selectedDocs.length === 0) return;
+    if (uploadedImages.length === 0 || selectedDocxDocs.length === 0) {
+      setErrors(['이미지와 문서를 모두 선택해주세요.']);
+      return;
+    }
 
     setIsLoading(true);
+    setErrors([]);
+    setProcessedDocs([]);
+
     try {
-      const uploadPromises = selectedDocs.map(async (doc) => {
-        const originalFileName = doc.fileName || doc.name || 'untitled';
+      setProcessingStatus('이미지에서 텍스트를 추출하고 있습니다...');
 
-        const formData = new FormData();
-        formData.append('prompt', "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요.");
-        formData.append('images', doc.file);
-
-        const geminiResponse = await axios.post(
-            '/api/gemini/generate',
-            formData,
-            {
-              headers: {
-                'Content-Type': 'multipart/form-data',
-              },
-            }
-        );
-
-        // 객체를 보기 좋게 포맷팅된 문자열로 변환
-        const formattedResponse = JSON.stringify(geminiResponse.data, null, 2);
-
-        if (!formattedResponse) {
-          throw new Error(`${originalFileName} 처리 중 빈 응답이 왔습니다.`);
+      // 1. 먼저 선택된 DOCX 문서들을 서버에 업로드
+      const uploadedDocuments = [];
+      for (let doc of selectedDocxDocs) {
+        if (doc.file) { // 새로 업로드한 파일인 경우
+          setProcessingStatus(`문서 업로드 중: ${doc.name}`);
+          const uploadResponse = await uploadDocument(doc.file);
+          uploadedDocuments.push(uploadResponse.data);
+        } else { // DB에 이미 있는 파일인 경우
+          uploadedDocuments.push(doc);
         }
+      }
 
-        const blob = new Blob([formattedResponse], { type: 'text/plain;charset=utf-8' });
-        const baseFileName = originalFileName.split('.')[0];
-        const newFileName = `${baseFileName}.txt`;
+      // 2. Gemini API로 이미지 처리
+      setProcessingStatus('이미지에서 텍스트를 추출하고 있습니다...');
+      const geminiResponse = await processImageWithGemini(
+          "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요. 추출된 텍스트를 기반으로 문서를 작성해주세요.",
+          uploadedImages
+      );
 
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = newFileName;
-        document.body.appendChild(a);
-        a.click();
+      // 3. 각 업로드된 문서와 이미지 결과를 결합하여 최종 문서 생성
+      const results = [];
+      for (let i = 0; i < uploadedDocuments.length; i++) {
+        const uploadedDoc = uploadedDocuments[i];
+        setProcessingStatus(`문서 처리 중: ${uploadedDoc.fileName}`);
 
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        try {
+          // 문서 처리 및 다운로드
+          const processResponse = await processAndDownloadDocument(
+              uploadedDoc.id,
+              uploadedDoc.fileName,
+              true
+          );
 
-        return {
-          fileName: originalFileName,
-          response: formattedResponse
-        };
-      });
+          // 처리된 파일 자동 다운로드
+          const url = window.URL.createObjectURL(new Blob([processResponse.data]));
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', `processed_${uploadedDoc.fileName}`);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
 
-      const results = await Promise.all(uploadPromises);
+          results.push({
+            fileName: `processed_${uploadedDoc.fileName}`,
+            response: `문서 '${uploadedDoc.fileName}'가 성공적으로 처리되어 다운로드되었습니다.\n\n추출된 텍스트:\n${JSON.stringify(geminiResponse.data, null, 2)}`
+          });
+        } catch (docError) {
+          console.error(`문서 처리 에러 (${uploadedDoc.fileName}):`, docError);
+          results.push({
+            fileName: `error_${uploadedDoc.fileName}`,
+            response: `문서 처리 중 오류가 발생했습니다: ${docError.message}`
+          });
+        }
+      }
+
       setProcessedDocs(results);
+      setProcessingStatus('');
+
     } catch (error) {
-      console.error('문서 처리 중 오류:', error);
-      alert(error.message || '문서 처리 중 오류가 발생했습니다.');
+      console.error('문서 처리 중 전체 오류:', error);
+      setErrors([error.message || '문서 처리 중 오류가 발생했습니다.']);
+      setProcessingStatus('');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 화살표 활성화 조건: 이미지 1개 이상 && docx 1개 이상
-  const canProceed = uploadedImages.length > 0 && selectedDocxDocs.length > 0;
+  // 처리 가능 여부 확인
+  const canProceed = uploadedImages.length > 0 && selectedDocxDocs.length > 0 && !isLoading;
 
   return (
       <Container>
-        <Title>AI Challenge</Title>
+        <Title>AI Challenge - 문서 처리 시스템</Title>
         <Section>
           <ProcessFlow>
             <Step>
               <StepNumber>1. 이미지 업로드</StepNumber>
               <ImageUpload onFilesChange={handleImagesChange} />
             </Step>
+
             <Step>
-              <StepNumber>2. 문서 업로드 및 선택</StepNumber>
-              <DocSelector
-                  onDocsSelect={handleDocxSelect}
-              />
+              <StepNumber>2. 문서 템플릿 선택</StepNumber>
+              <DocSelector onDocsSelect={handleDocxSelect} />
             </Step>
+
             <ArrowButton
                 onClick={handleProcessDocs}
-                disabled={!canProceed || isLoading}
+                disabled={!canProceed}
                 title={
                   canProceed
                       ? '문서 처리 시작'
-                      : '이미지 1개 이상 업로드 및 docx 1개 이상 선택해주세요'
+                      : '이미지와 문서 템플릿을 모두 선택해주세요'
                 }
             >
-              →
+              {isLoading ? '🔄' : '→'}
             </ArrowButton>
+
             <Step>
-              <StepNumber>3. 결과 및 다운로드</StepNumber>
+              <StepNumber>3. 처리 결과 및 다운로드</StepNumber>
+
+              {processingStatus && (
+                  <ProcessingStatus>{processingStatus}</ProcessingStatus>
+              )}
+
               {errors.length > 0 && (
                   <div>
                     {errors.map((error, index) => (
@@ -205,6 +243,7 @@ function MainPage() {
                     ))}
                   </div>
               )}
+
               <ProcessedDocs
                   docs={processedDocs}
                   isLoading={isLoading}

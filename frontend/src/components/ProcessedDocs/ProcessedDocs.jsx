@@ -1,7 +1,6 @@
-// src/components/ProcessedDocs/ProcessedDocs.jsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
+import { fetchProcessedDocuments, downloadProcessedDocument } from '../../services/documentService';
 
 const Container = styled.div`
   width: 100%;
@@ -42,12 +41,12 @@ const DocList = styled.div`
 const DocItem = styled.div`
   display: flex;
   align-items: center;
-  padding: 12px 16px; // 패딩 증가
-  margin-bottom: 12px; // 마진 증가
+  padding: 12px 16px;
+  margin-bottom: 12px;
   background: white;
   border-radius: 4px;
   border: 1px solid #ddd;
-  gap: 20px; // 요소들 사이 간격 추가
+  gap: 20px;
 `;
 
 const DocName = styled.span`
@@ -64,11 +63,11 @@ const DownloadButton = styled.button`
   color: white;
   border: none;
   border-radius: 4px;
-  padding: 8px 16px; // 패딩 증가
+  padding: 8px 16px;
   cursor: pointer;
   font-size: 0.9rem;
   transition: all 0.3s ease;
-  min-width: 100px; // 최소 너비 설정
+  min-width: 100px;
 
   &:hover {
     background-color: #138496;
@@ -80,7 +79,6 @@ const DownloadButton = styled.button`
     cursor: not-allowed;
   }
 `;
-
 
 const LoadingSpinner = styled.div`
   display: flex;
@@ -104,50 +102,127 @@ const LoadingSpinner = styled.div`
   }
 `;
 
-const ResultContainer = styled.div`
-  width: 100%;
-  padding: 16px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background-color: #fff;
-`;
 const ResultItem = styled.div`
   margin-bottom: 20px;
-  padding: 10px;
-  border-bottom: 1px solid #eee;
+  padding: 15px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #eee;
 `;
 
-const FileName = styled.h3`
+const FileName = styled.h4`
   color: #333;
   margin-bottom: 10px;
+  font-size: 1rem;
 `;
 
 const ResponseText = styled.pre`
   white-space: pre-wrap;
   background-color: #f8f9fa;
-  padding: 10px;
+  padding: 15px;
   border-radius: 4px;
   font-size: 14px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 0;
+`;
+
+const RefreshButton = styled.button`
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+  width: 100%;
+  
+  &:hover {
+    background-color: #218838;
+  }
 `;
 
 function ProcessedDocs({ docs, isLoading }) {
+  const [processedFiles, setProcessedFiles] = useState([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // 컴포넌트 마운트 시 처리된 문서 목록 로드
+  useEffect(() => {
+    loadProcessedFiles();
+  }, []);
+
+  const loadProcessedFiles = async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await fetchProcessedDocuments();
+      setProcessedFiles(response.data);
+    } catch (error) {
+      console.error('처리된 문서 목록 로딩 에러:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleDownload = async (fileName) => {
+    try {
+      const response = await downloadProcessedDocument(fileName);
+
+      // Blob을 이용한 파일 다운로드
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('파일 다운로드 에러:', error);
+      alert('파일 다운로드 중 오류가 발생했습니다.');
+    }
+  };
+
   return (
       <Container>
         <Title>처리된 문서</Title>
-        {isLoading ? (
+
+        <RefreshButton onClick={loadProcessedFiles} disabled={isRefreshing}>
+          {isRefreshing ? '새로고침 중...' : '목록 새로고침'}
+        </RefreshButton>
+
+        {isLoading || isRefreshing ? (
             <LoadingSpinner />
         ) : (
             <DocList>
+              {/* 실시간 처리 결과 표시 */}
               {Array.isArray(docs) && docs.map((doc, index) => (
-                  <DocItem key={index}>
-                    <DocName>{doc.fileName}</DocName>
+                  <ResultItem key={`realtime-${index}`}>
+                    <FileName>🆕 {doc.fileName} (실시간 처리 결과)</FileName>
+                    <ResponseText>{doc.response}</ResponseText>
+                  </ResultItem>
+              ))}
+
+              {/* 서버에 저장된 처리된 파일들 표시 */}
+              {Array.isArray(processedFiles) && processedFiles.map((file, index) => (
+                  <DocItem key={`processed-${index}`}>
+                    <DocName>📄 {file.fileName}</DocName>
+                    <DownloadButton onClick={() => handleDownload(file.fileName)}>
+                      다운로드
+                    </DownloadButton>
                   </DocItem>
               ))}
+
+              {/* 빈 상태 메시지 */}
+              {!isLoading && !isRefreshing && docs.length === 0 && processedFiles.length === 0 && (
+                  <DocItem>
+                    <DocName>처리된 문서가 없습니다.</DocName>
+                  </DocItem>
+              )}
             </DocList>
         )}
       </Container>
   );
 }
-
 
 export default ProcessedDocs;
