@@ -155,7 +155,7 @@ function MainPage() {
           uploadedImages
       );
       const extractedText = geminiResponse.data;
-
+      console.log(extractedText);
       // 2. 선택된 DOCX 문서들을 서버에 업로드
       const uploadedDocuments = [];
       for (let doc of selectedDocxDocs) {
