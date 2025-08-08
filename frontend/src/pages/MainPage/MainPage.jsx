@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import DocSelector from "../../components/DocSelector/DocSelector";
 import ImageUpload from '../../components/FileUpload/ImageUpload';
 import ProcessedDocs from '../../components/ProcessedDocs/ProcessedDocs';
-import { processImageWithGemini, uploadDocument, processAndDownloadDocument } from '../../services/documentService';
+import { processImageWithGemini, uploadDocument, createAndDownloadDocument } from '../../services/documentService'; // createAndDownloadDocument 함수 추가
 
 const Container = styled.div`
   max-width: 1440px;
@@ -105,17 +105,16 @@ function MainPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState([]);
   const [processingStatus, setProcessingStatus] = useState('');
+  const [downloadUrl, setDownloadUrl] = useState(null); // 다운로드 URL 상태 추가
 
-  // 이미지 업로드 핸들러
   const handleImagesChange = (images) => {
     setUploadedImages(images);
-    setErrors([]); // 에러 초기화
+    setErrors([]);
   };
 
-  // DocSelector에서 docx 선택 핸들러
   const handleDocxSelect = (docs) => {
     setSelectedDocxDocs(docs);
-    setErrors([]); // 에러 초기화
+    setErrors([]);
   };
 
   const handleProcessDocs = async () => {
@@ -127,11 +126,19 @@ function MainPage() {
     setIsLoading(true);
     setErrors([]);
     setProcessedDocs([]);
+    setDownloadUrl(null); // 새로운 처리 시작 시 다운로드 URL 초기화
 
     try {
       setProcessingStatus('이미지에서 텍스트를 추출하고 있습니다...');
 
-      // 1. 먼저 선택된 DOCX 문서들을 서버에 업로드
+      // 1. Gemini API로 이미지에서 텍스트 추출
+      const geminiResponse = await processImageWithGemini(
+          "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요. 추출된 텍스트를 기반으로 문서를 작성해주세요.",
+          uploadedImages
+      );
+      const extractedText = geminiResponse.data;
+
+      // 2. 선택된 DOCX 문서들을 서버에 업로드 (이미지 텍스트와 결합하기 위함)
       const uploadedDocuments = [];
       for (let doc of selectedDocxDocs) {
         if (doc.file) { // 새로 업로드한 파일인 경우
@@ -143,51 +150,25 @@ function MainPage() {
         }
       }
 
-      // 2. Gemini API로 이미지 처리
-      setProcessingStatus('이미지에서 텍스트를 추출하고 있습니다...');
-      const geminiResponse = await processImageWithGemini(
-          "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요. 추출된 텍스트를 기반으로 문서를 작성해주세요.",
-          uploadedImages
-      );
+      // 3. 서버에 최종 문서 생성 및 다운로드 요청
+      setProcessingStatus('최종 문서를 생성하고 있습니다...');
 
-      // 3. 각 업로드된 문서와 이미지 결과를 결합하여 최종 문서 생성
-      const results = [];
-      for (let i = 0; i < uploadedDocuments.length; i++) {
-        const uploadedDoc = uploadedDocuments[i];
-        setProcessingStatus(`문서 처리 중: ${uploadedDoc.fileName}`);
+      // 첫 번째 선택된 문서 템플릿만 사용하도록 가정
+      const selectedDocId = uploadedDocuments[0].id;
+      const selectedDocName = uploadedDocuments[0].fileName;
 
-        try {
-          // 문서 처리 및 다운로드
-          const processResponse = await processAndDownloadDocument(
-              uploadedDoc.id,
-              uploadedDoc.fileName,
-              true
-          );
+      // 서버에 텍스트와 템플릿 ID를 보내서 문서 생성 후 바로 다운로드
+      const processResponse = await createAndDownloadDocument(selectedDocId, extractedText);
 
-          // 처리된 파일 자동 다운로드
-          const url = window.URL.createObjectURL(new Blob([processResponse.data]));
-          const link = document.createElement('a');
-          link.href = url;
-          link.setAttribute('download', `processed_${uploadedDoc.fileName}`);
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          window.URL.revokeObjectURL(url);
+      // 처리된 파일의 다운로드 URL 생성
+      const url = window.URL.createObjectURL(new Blob([processResponse.data]));
+      setDownloadUrl(url);
 
-          results.push({
-            fileName: `processed_${uploadedDoc.fileName}`,
-            response: `문서 '${uploadedDoc.fileName}'가 성공적으로 처리되어 다운로드되었습니다.\n\n추출된 텍스트:\n${JSON.stringify(geminiResponse.data, null, 2)}`
-          });
-        } catch (docError) {
-          console.error(`문서 처리 에러 (${uploadedDoc.fileName}):`, docError);
-          results.push({
-            fileName: `error_${uploadedDoc.fileName}`,
-            response: `문서 처리 중 오류가 발생했습니다: ${docError.message}`
-          });
-        }
-      }
-
-      setProcessedDocs(results);
+      // 실시간 결과 표시
+      setProcessedDocs([{
+        fileName: `processed_${selectedDocName}`,
+        response: extractedText // 추출된 텍스트를 결과로 표시
+      }]);
       setProcessingStatus('');
 
     } catch (error) {
@@ -199,7 +180,6 @@ function MainPage() {
     }
   };
 
-  // 처리 가능 여부 확인
   const canProceed = uploadedImages.length > 0 && selectedDocxDocs.length > 0 && !isLoading;
 
   return (
@@ -244,8 +224,15 @@ function MainPage() {
                   </div>
               )}
 
+              {/* 다운로드 버튼은 실시간 결과가 있을 때만 표시 */}
+              {downloadUrl && (
+                  <a href={downloadUrl} download={processedDocs[0]?.fileName}>
+                    <button>결과 파일 다운로드</button>
+                  </a>
+              )}
+
               <ProcessedDocs
-                  docs={processedDocs}
+                  realtimeDocs={processedDocs} // Prop 이름 변경
                   isLoading={isLoading}
               />
             </Step>

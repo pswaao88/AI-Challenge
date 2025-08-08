@@ -85,7 +85,7 @@ const LoadingSpinner = styled.div`
   justify-content: center;
   align-items: center;
   min-height: 200px;
-  
+
   &:after {
     content: '';
     width: 40px;
@@ -137,17 +137,16 @@ const RefreshButton = styled.button`
   font-size: 0.9rem;
   margin-bottom: 15px;
   width: 100%;
-  
+
   &:hover {
     background-color: #218838;
   }
 `;
 
-function ProcessedDocs({ docs, isLoading }) {
+function ProcessedDocs({ realtimeDocs, isLoading }) { // Prop 이름 변경
   const [processedFiles, setProcessedFiles] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // 컴포넌트 마운트 시 처리된 문서 목록 로드
   useEffect(() => {
     loadProcessedFiles();
   }, []);
@@ -168,7 +167,6 @@ function ProcessedDocs({ docs, isLoading }) {
     try {
       const response = await downloadProcessedDocument(fileName);
 
-      // Blob을 이용한 파일 다운로드
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -185,23 +183,23 @@ function ProcessedDocs({ docs, isLoading }) {
 
   return (
       <Container>
-        <Title>처리된 문서</Title>
+        <Title>처리 결과 및 저장된 문서</Title>
 
-        <RefreshButton onClick={loadProcessedFiles} disabled={isRefreshing}>
-          {isRefreshing ? '새로고침 중...' : '목록 새로고침'}
-        </RefreshButton>
-
-        {isLoading || isRefreshing ? (
+        {isLoading ? (
             <LoadingSpinner />
         ) : (
             <DocList>
               {/* 실시간 처리 결과 표시 */}
-              {Array.isArray(docs) && docs.map((doc, index) => (
-                  <ResultItem key={`realtime-${index}`}>
-                    <FileName>🆕 {doc.fileName} (실시간 처리 결과)</FileName>
-                    <ResponseText>{doc.response}</ResponseText>
+              {Array.isArray(realtimeDocs) && realtimeDocs.length > 0 && (
+                  <ResultItem>
+                    <FileName>🆕 실시간 처리 결과 (새로고침 시 사라집니다)</FileName>
+                    <ResponseText>{realtimeDocs[0]?.response}</ResponseText>
                   </ResultItem>
-              ))}
+              )}
+
+              <RefreshButton onClick={loadProcessedFiles} disabled={isRefreshing}>
+                {isRefreshing ? '목록 새로고침 중...' : '저장된 문서 목록 새로고침'}
+              </RefreshButton>
 
               {/* 서버에 저장된 처리된 파일들 표시 */}
               {Array.isArray(processedFiles) && processedFiles.map((file, index) => (
@@ -214,7 +212,7 @@ function ProcessedDocs({ docs, isLoading }) {
               ))}
 
               {/* 빈 상태 메시지 */}
-              {!isLoading && !isRefreshing && docs.length === 0 && processedFiles.length === 0 && (
+              {!isLoading && !isRefreshing && realtimeDocs.length === 0 && processedFiles.length === 0 && (
                   <DocItem>
                     <DocName>처리된 문서가 없습니다.</DocName>
                   </DocItem>

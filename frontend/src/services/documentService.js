@@ -65,7 +65,6 @@ export const processImageWithGemini = async (prompt, images) => {
   const formData = new FormData();
   formData.append('prompt', prompt);
 
-  // 여러 이미지 처리
   images.forEach(image => {
     formData.append('images', image.file);
   });
@@ -74,5 +73,15 @@ export const processImageWithGemini = async (prompt, images) => {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+  });
+};
+
+// **새로 추가된 함수**: 문서 템플릿과 텍스트를 결합하여 서버에 저장하고 파일 다운로드
+export const createAndDownloadDocument = async (documentId, textContent) => {
+  return await apiClient.post('/document/create-and-download', {
+    documentId,
+    textContent,
+  }, {
+    responseType: 'blob', // 파일 다운로드를 위한 blob 타입
   });
 };
