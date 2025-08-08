@@ -2,10 +2,13 @@ package AI_Challenge.AI_Challenge.domain.document.service;
 
 import AI_Challenge.AI_Challenge.domain.document.entity.Document;
 import AI_Challenge.AI_Challenge.domain.document.repository.DocumentRepository;
+import java.io.ByteArrayOutputStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -217,6 +220,33 @@ public class DocumentService {
             XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
 
             return extractor.getText();
+        }
+    }
+
+    public byte[] createAndDownloadDocument(Long documentId, String extractedText) throws Exception {
+        Document document = documentRepository.findById(documentId)
+            .orElseThrow(() -> new RuntimeException("문서를 찾을 수 없습니다: " + documentId));
+
+        // 1. 새로운 XWPFDocument 객체 생성 (빈 DOCX 파일을 만듭니다)
+        try (XWPFDocument newDoc = new XWPFDocument()) {
+            // 2. 새로운 단락(paragraph) 생성
+            XWPFParagraph paragraph = newDoc.createParagraph();
+
+            // 3. 단락에 텍스트 추가
+            XWPFRun run = paragraph.createRun();
+            run.setText(extractedText);
+            run.setFontFamily("맑은 고딕"); // 글꼴 설정 (필요시)
+            run.setFontSize(11);          // 글꼴 크기 설정 (필요시)
+
+            // 4. ByteArrayOutputStream을 사용하여 수정된 문서를 byte[]로 변환
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            newDoc.write(bos);
+
+            return bos.toByteArray();
+
+        } catch (IOException e) {
+            log.error("DOCX 파일 생성 중 오류 발생", e);
+            throw new RuntimeException("DOCX 파일 생성 실패", e);
         }
     }
 }
