@@ -154,9 +154,7 @@ function MainPage() {
           "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요. 추출된 텍스트를 기반으로 문서를 작성해주세요.",
           uploadedImages
       );
-      console.log(geminiResponse);
       const extractedText = geminiResponse.data.map(item => item.response).join('\n\n');
-      console.log(extractedText);
       // 2. 선택된 DOCX 문서들을 서버에 업로드
       const uploadedDocuments = [];
       for (let doc of selectedDocxDocs) {
