@@ -25,7 +25,7 @@ public class GptService {
 
         try {
             ChatCompletionRequest request = ChatCompletionRequest.builder()
-                .model("gpt-5-mini")
+                .model("gpt-4.1")
                 .messages(Arrays.asList(
                     new ChatMessage("user", prompt)
                 ))
