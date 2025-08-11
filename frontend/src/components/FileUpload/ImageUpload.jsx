@@ -1,7 +1,7 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 
+// --- 기존 스타일 컴포넌트는 대부분 그대로 사용합니다 ---
 const Container = styled.div`
   display: flex;
   flex-direction: column;
@@ -56,7 +56,7 @@ const HiddenInput = styled.input`
   display: none;
 `;
 
-const ImageList = styled.div`
+const FileList = styled.div`
   width: 250px;
   max-height: 300px;
   overflow-y: auto;
@@ -66,11 +66,12 @@ const ImageList = styled.div`
   padding: 5px;
 `;
 
-const ImageItem = styled.div`
+const FileItem = styled.div`
   position: relative;
   width: 100%;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  cursor: pointer;
 `;
 
 const PreviewImage = styled.img`
@@ -79,6 +80,33 @@ const PreviewImage = styled.img`
   object-fit: contain;
   border-radius: 8px;
 `;
+
+// PDF 미리보기를 위한 새로운 스타일 컴포넌트
+const PdfPreview = styled.div`
+  width: 100%;
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #e9e9e9;
+  border-radius: 8px;
+  padding: 10px;
+  box-sizing: border-box;
+`;
+
+const PdfIcon = styled.span`
+  font-size: 48px;
+`;
+
+const FileName = styled.p`
+  font-size: 14px;
+  color: #333;
+  word-break: break-all;
+  text-align: center;
+  margin-top: 10px;
+`;
+
 
 const DeleteButton = styled.button`
   position: absolute;
@@ -101,7 +129,7 @@ const DeleteButton = styled.button`
     background-color: rgba(255, 0, 0, 0.9);
   }
 
-  ${ImageItem}:hover & {
+  ${FileItem}:hover & {
     opacity: 1;
   }
 `;
@@ -145,11 +173,24 @@ const CloseButton = styled.button`
   }
 `;
 
-
+// --- 로직이 수정된 ImageUpload 컴포넌트 ---
 function ImageUpload({ onFilesChange }) {
-  const [images, setImages] = useState([]);
+  // 'images' -> 'files'로 상태 이름 변경
+  const [files, setFiles] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const fileInputRef = useRef(null);
+
+  // 컴포넌트 언마운트 시 Blob URL 메모리 해제
+  useEffect(() => {
+    return () => {
+      files.forEach(file => {
+        if (file.type === 'pdf') {
+          URL.revokeObjectURL(file.url);
+        }
+      });
+    };
+  }, [files]);
+
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -157,36 +198,44 @@ function ImageUpload({ onFilesChange }) {
 
   const handleDrop = (e) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
-    handleFiles(files);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    handleFiles(droppedFiles);
   };
 
-  const handleFiles = (files) => {
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
-    if (imageFiles.length !== files.length) {
-      alert('이미지 파일만 업로드 가능합니다.');
-      return;
+  const handleFiles = (incomingFiles) => {
+    // 이미지와 PDF 파일만 허용하도록 필터링 로직 수정
+    const allowedFiles = incomingFiles.filter(
+        file => file.type.startsWith('image/') || file.type === 'application/pdf'
+    );
+
+    if (allowedFiles.length !== incomingFiles.length) {
+      alert('이미지 또는 PDF 파일만 업로드 가능합니다.');
     }
-    processFiles(imageFiles);
+
+    if(allowedFiles.length > 0) {
+      processFiles(allowedFiles);
+    }
   };
 
-  const processFiles = (files) => {
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const newImage = {
-          id: Date.now() + Math.random(),
-          url: e.target.result,
-          name: file.name,
-          file: file
-        };
-        setImages(prevImages => [newImage, ...prevImages]);
-        if (onFilesChange) {
-          onFilesChange(prev => [newImage, ...prev]);
-        }
+  const processFiles = (newFiles) => {
+    const processedFiles = newFiles.map(file => {
+      const isImage = file.type.startsWith('image/');
+      // 이미지면 Data URL, PDF면 Blob URL 생성
+      const fileUrl = isImage ? URL.createObjectURL(file) : URL.createObjectURL(file);
+
+      return {
+        id: Date.now() + Math.random(),
+        url: fileUrl,
+        name: file.name,
+        file: file,
+        type: isImage ? 'image' : 'pdf'
       };
-      reader.readAsDataURL(file);
     });
+
+    setFiles(prevFiles => [...processedFiles, ...prevFiles]);
+    if (onFilesChange) {
+      onFilesChange(prev => [...processedFiles, ...prev]);
+    }
   };
 
   const handleUploadClick = () => {
@@ -194,23 +243,35 @@ function ImageUpload({ onFilesChange }) {
   };
 
   const handleFileInput = (e) => {
-    const files = Array.from(e.target.files);
-    handleFiles(files);
+    const selectedFiles = Array.from(e.target.files);
+    handleFiles(selectedFiles);
     e.target.value = '';
   };
 
-  const handleDeleteImage = (imageId) => {
-    setImages(prevImages => {
-      const newImages = prevImages.filter(image => image.id !== imageId);
-      if (onFilesChange) {
-        onFilesChange(newImages);
+  const handleDeleteFile = (fileId) => {
+    setFiles(prevFiles => {
+      // 삭제할 파일 찾기
+      const fileToDelete = prevFiles.find(file => file.id === fileId);
+      if (fileToDelete && fileToDelete.type === 'pdf') {
+        // PDF의 경우 메모리 누수 방지를 위해 Blob URL 해제
+        URL.revokeObjectURL(fileToDelete.url);
       }
-      return newImages;
+
+      const newFiles = prevFiles.filter(file => file.id !== fileId);
+      if (onFilesChange) {
+        onFilesChange(newFiles);
+      }
+      return newFiles;
     });
   };
 
-  const handleImageClick = (image) => {
-    setSelectedImage(image);
+  // 이미지와 PDF 클릭 이벤트를 다르게 처리
+  const handleItemClick = (file) => {
+    if (file.type === 'image') {
+      setSelectedImage(file);
+    } else { // PDF인 경우 새 탭에서 열기
+      window.open(file.url, '_blank');
+    }
   };
 
   const closeModal = () => {
@@ -219,41 +280,48 @@ function ImageUpload({ onFilesChange }) {
 
   return (
       <Container>
-        <UploadContainer
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-        >
-          <UploadText>이미지를 드래그하거나<br/>버튼을 클릭하세요</UploadText>
+        <UploadContainer onDragOver={handleDragOver} onDrop={handleDrop}>
+          <UploadText>이미지 또는 PDF를 드래그하거나<br/>버튼을 클릭하세요</UploadText>
           <UploadButton onClick={handleUploadClick}>
-            + 이미지 업로드
+            + 파일 업로드
           </UploadButton>
           <HiddenInput
               type="file"
               ref={fileInputRef}
               onChange={handleFileInput}
-              accept="image/*"
+              // accept 속성에 PDF 추가
+              accept="image/*,application/pdf"
               multiple
           />
         </UploadContainer>
 
-        {images.length > 0 && (
-            <ImageList>
-              {images.map((image) => (
-                  <ImageItem key={image.id}>
-                    <PreviewImage
-                        src={image.url}
-                        alt={image.name}
-                        onClick={() => handleImageClick(image)}
-                        style={{ cursor: 'pointer' }}
-                    />
-                    <DeleteButton
-                        onClick={() => handleDeleteImage(image.id)}
-                    >
+        {files.length > 0 && (
+            // ImageList -> FileList로 이름 변경
+            <FileList>
+              {files.map((file) => (
+                  // ImageItem -> FileItem으로 이름 변경
+                  <FileItem key={file.id}>
+                    {file.type === 'image' ? (
+                        <PreviewImage
+                            src={file.url}
+                            alt={file.name}
+                            onClick={() => handleItemClick(file)}
+                        />
+                    ) : (
+                        <PdfPreview onClick={() => handleItemClick(file)}>
+                          <PdfIcon>📄</PdfIcon>
+                          <FileName>{file.name}</FileName>
+                        </PdfPreview>
+                    )}
+                    <DeleteButton onClick={(e) => {
+                      e.stopPropagation(); // 부모 요소의 클릭 이벤트 방지
+                      handleDeleteFile(file.id);
+                    }}>
                       ×
                     </DeleteButton>
-                  </ImageItem>
+                  </FileItem>
               ))}
-            </ImageList>
+            </FileList>
         )}
 
         {selectedImage && (
