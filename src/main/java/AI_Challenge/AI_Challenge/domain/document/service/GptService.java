@@ -6,8 +6,16 @@ import com.theokanning.openai.completion.chat.ChatCompletionResult;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.service.OpenAiService;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.xwpf.usermodel.IBodyElement;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFTable;
+import org.apache.poi.xwpf.usermodel.XWPFTableCell;
+import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -48,4 +56,35 @@ public class GptService {
         }
 
     }
+
+    public String convertDocxToMarkdown(InputStream docxInput, String receiptMarkdown) throws IOException {
+        try (XWPFDocument document = new XWPFDocument(docxInput)) {
+            StringBuilder md = new StringBuilder();
+            for (IBodyElement element : document.getBodyElements()) {
+                if (element instanceof XWPFParagraph) {
+                    XWPFParagraph para = (XWPFParagraph) element;
+                    String text = para.getText().trim();
+                    if (!text.isEmpty()) {
+                        md.append(text).append("\n\n");
+                    }
+                } else if (element instanceof XWPFTable) {
+                    XWPFTable table = (XWPFTable) element;
+                    for (XWPFTableRow row : table.getRows()) {
+                        for (XWPFTableCell cell : row.getTableCells()) {
+                            md.append(cell.getText()).append(" | ");
+                        }
+                        md.append("\n");
+                    }
+                    md.append("\n");
+                }
+            }
+            // 원하는 위치에 영수증 Markdown 삽입
+            md.append("\n## 첨부 영수증\n\n");
+            md.append(receiptMarkdown).append("\n");
+
+            return md.toString();
+        }
+    }
+
+
 }
