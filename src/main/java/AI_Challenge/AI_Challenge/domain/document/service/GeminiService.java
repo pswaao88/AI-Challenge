@@ -21,11 +21,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class GeminiService {
 
     private final OpenAiService openAiService;
-    private final DocumentService documentService;
 
-    public GeminiService(@Value("${openai.api.key}") String apiKey, DocumentService documentService) {
+    public GeminiService(@Value("${openai.api.key}") String apiKey) {
         this.openAiService = new OpenAiService(apiKey);
-        this.documentService = documentService;
     }
 
     public String extractTextFromImageByGemini(MultipartFile image) {
