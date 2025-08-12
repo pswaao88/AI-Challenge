@@ -33,6 +33,7 @@ const UploadText = styled.div`
   text-align: center;
   color: #666;
   margin-bottom: 10px;
+  font-size: 14px;
 `;
 
 const UploadButton = styled.button`
@@ -58,8 +59,6 @@ const HiddenInput = styled.input`
 
 const FileList = styled.div`
   width: 250px;
-  max-height: 300px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -110,23 +109,21 @@ const FileName = styled.p`
 
 const DeleteButton = styled.button`
   position: absolute;
-  top: 5px;
-  right: 5px;
-  background-color: rgba(255, 0, 0, 0.7);
+  top: 8px;
+  right: 8px;
+  background-color: rgba(3, 78, 162, 1); // 반투명 검정 배경
   color: white;
   border: none;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 4px; // 사각형 버튼에 맞는 둥근 모서리
+  padding: 4px 10px; // 텍스트에 맞게 내부 여백 설정
+  font-size: 12px;   // 폰트 크기
+  font-weight: bold; // 굵은 글씨
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: all 0.2s ease;
 
   &:hover {
-    background-color: rgba(255, 0, 0, 0.9);
+    background-color: rgba(0, 0, 0, 0.9);
   }
 
   ${FileItem}:hover & {
@@ -314,10 +311,10 @@ function ImageUpload({ onFilesChange }) {
                         </PdfPreview>
                     )}
                     <DeleteButton onClick={(e) => {
-                      e.stopPropagation(); // 부모 요소의 클릭 이벤트 방지
+                      e.stopPropagation();
                       handleDeleteFile(file.id);
                     }}>
-                      ×
+                      삭제
                     </DeleteButton>
                   </FileItem>
               ))}

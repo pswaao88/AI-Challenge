@@ -54,7 +54,6 @@ public class GptService {
                 throw new RuntimeException("GPT 응답 생성 실패", e);
             }
         }
-
     }
 
     public String convertDocxToMarkdown(InputStream docxInput, String receiptMarkdown) throws IOException {

@@ -1,81 +1,149 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import logoImage from '../../assets/logo.png';
 import DocSelector from "../../components/DocSelector/DocSelector";
 import ImageUpload from '../../components/FileUpload/ImageUpload';
 import ProcessedDocs from '../../components/ProcessedDocs/ProcessedDocs';
 import { processImageWithGemini, uploadDocument, createAndDownloadDocument } from '../../services/documentService';
 
-const Container = styled.div`
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 16px;
+// --- 레이아웃 컴포넌트 ---
+
+const PageLayout = styled.div`
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  background-color: #f7f9fc;
 `;
 
 const Title = styled.h1`
+  grid-column: 1 / -1;
   text-align: center;
-  margin-bottom: 32px;
-  color: #333;
+  margin: 0;
+  padding: 24px;
+  color: #3b475f;
   font-size: 2rem;
-`;
-
-const Section = styled.section`
-  padding: 30px;
-  margin-bottom: 32px;
-  background-color: white;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  max-height: 72vh;
-  overflow-y: auto;
-`;
-
-const ProcessFlow = styled.div`
+  font-weight: 700;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 48px;
-  text-align: center;
-  padding: 0 32px;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e9ecef;
 `;
 
-const Step = styled.div`
-  flex: 1;
+const LogoImage = styled.img`
+  width: 48px;
+  height: 48px;
+  margin-right: 16px;
+  object-fit: contain; /* 이미지가 잘리지 않고 비율에 맞게 채워지도록 설정 */
+`;
+
+const InputArea = styled.div`
+  padding: 32px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  min-width: 320px;
-  padding: 16px;
+  overflow: hidden;
 `;
 
-const StepNumber = styled.div`
-  font-size: 1.12rem;
-  color: #666;
-  margin-bottom: 24px;
-  font-weight: bold;
-  width: 100%;
+const OutputArea = styled.main`
+  padding: 32px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-color: #ffffff;
+  border-left: 1px solid #e9ecef;
+`;
+
+const InputGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  flex: 1;
+  min-height: 0;
+`;
+
+
+const Step = styled.div`
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e9ecef;
+  overflow: hidden;
+`;
+
+const StepTitle = styled.h2`
+  font-size: 1.2rem;
+  font-weight: ${({ isCompleted }) => (isCompleted ? '600' : 'normal')};
+  color: ${({ isCompleted }) => (isCompleted ? '#495057' : '#adb5bd')};
+  margin: 0 0 16px 0;
   text-align: center;
-  padding-top: 12px;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
 `;
 
-const ArrowButton = styled.button`
-  background: none;
+const StepContent = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #d8dde3;
+    border-radius: 3px;
+  }
+  &::-webkit-scrollbar-track {
+    background-color: #f1f1f1;
+  }
+`;
+
+const ActionButtonWrapper = styled.div`
+  display: flex;
+  justify-content: center;
+  padding-top: 32px;
+  flex-shrink: 0;
+`;
+
+const GenerateButton = styled.button`
+  padding: 16px 48px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: white;
+  background-color: #546381;
   border: none;
-  font-size: 1.6rem;
-  color: #28a745;
+  border-radius: 8px;
   cursor: pointer;
-  padding: 8px;
-  transition: transform 0.3s ease;
-  margin-top: 160px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(84, 99, 129, 0.2);
 
   &:hover {
-    transform: scale(1.2);
+    background-color: #3b475f;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(84, 99, 129, 0.3);
   }
 
   &:disabled {
-    color: #ccc;
+    background-color: #ced4da;
     cursor: not-allowed;
     transform: none;
+    box-shadow: none;
   }
+`;
+
+const ResultsPlaceholder = styled.div`
+  text-align: center;
+  color: #adb5bd;
+  font-size: 1.2rem;
+`;
+
+const ResultsWrapper = styled.div`
+  width: 100%;
+  text-align: left;
 `;
 
 const ProcessingStatus = styled.div`
@@ -83,34 +151,33 @@ const ProcessingStatus = styled.div`
   border: 1px solid #2196f3;
   border-radius: 4px;
   padding: 15px;
-  margin: 20px 0;
-  text-align: center;
+  margin-bottom: 20px;
   color: #1976d2;
   font-weight: 500;
 `;
 
 const ErrorMessage = styled.div`
   color: #dc3545;
-  text-align: center;
-  margin: 8px 0;
-  padding: 8px;
   background-color: #ffe6e6;
-  border-radius: 3px;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 20px;
 `;
 
-// 다운로드 버튼 컴포넌트
 const DownloadButton = styled.a`
   display: inline-block;
-  background-color: #17a2b8;
+  background-color: #28a745;
   color: white;
-  padding: 10px 20px;
+  padding: 12px 24px;
   border-radius: 5px;
   text-decoration: none;
-  margin-top: 10px;
+  font-weight: bold;
+  margin-top: 16px;
   cursor: pointer;
 
   &:hover {
-    background-color: #138496;
+    background-color: #218838;
   }
 `;
 
@@ -121,8 +188,8 @@ function MainPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState([]);
   const [processingStatus, setProcessingStatus] = useState('');
-  const [downloadUrl, setDownloadUrl] = useState(null); // 다운로드 URL 상태 추가
-  const [resultFileName, setResultFileName] = useState(''); // 파일명 상태 추가
+  const [downloadUrl, setDownloadUrl] = useState(null);
+  const [resultFileName, setResultFileName] = useState('');
 
   const handleImagesChange = (images) => {
     setUploadedImages(images);
@@ -139,68 +206,36 @@ function MainPage() {
       setErrors(['이미지와 문서를 모두 선택해주세요.']);
       return;
     }
-
     setIsLoading(true);
     setErrors([]);
     setProcessedDocs([]);
-    setDownloadUrl(null); // 새 작업 시작 시 다운로드 URL 초기화
-    setResultFileName(''); // 새 작업 시작 시 파일명 초기화
-
+    setDownloadUrl(null);
+    setResultFileName('');
     try {
       setProcessingStatus('이미지에서 텍스트를 추출하고 있습니다...');
-
-      // 1. Gemini API로 이미지에서 텍스트 추출
-      const geminiResponse = await processImageWithGemini(
-          "이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요. 추출된 텍스트를 기반으로 문서를 작성해주세요.",
-          uploadedImages
-      );
+      const geminiResponse = await processImageWithGemini("이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요. 추출된 텍스트를 기반으로 문서를 작성해주세요.", uploadedImages);
       const extractedText = geminiResponse.data.map(item => item.response).join('\n\n');
-      // 2. 선택된 DOCX 문서들을 서버에 업로드
       const uploadedDocuments = [];
       for (let doc of selectedDocxDocs) {
-        if (doc.file) { // 새로 업로드한 파일인 경우
+        if (doc.file) {
           setProcessingStatus(`문서 업로드 중: ${doc.name}`);
           const uploadResponse = await uploadDocument(doc.file);
           uploadedDocuments.push(uploadResponse.data);
-        } else { // DB에 이미 있는 파일인 경우
+        } else {
           uploadedDocuments.push(doc);
         }
       }
-
-      // 3. 서버에 최종 문서 생성 및 다운로드 요청
       setProcessingStatus('최종 문서를 생성하고 있습니다...');
-
       const selectedDocId = uploadedDocuments[0].id;
       const selectedDocName = uploadedDocuments[0].fileName;
-
-      const requestData = {
-        documentId: selectedDocId,
-        textContent: extractedText // 이제 textContent는 결합된 문자열입니다.
-      };
-
+      const requestData = { documentId: selectedDocId, textContent: extractedText };
       const processResponse = await createAndDownloadDocument(requestData);
-
-      // 처리된 파일의 다운로드 URL 생성
       const url = window.URL.createObjectURL(new Blob([processResponse.data]));
       setDownloadUrl(url);
-
-      const contentDisposition = processResponse.headers['content-disposition'];
-      const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
-      let newFileName = 'processed_document.docx';
-
-
-      // 우선 클라이언트에서 직접 생성
-      // (완료) [원본파일명].docx
-      newFileName = `(완료) ${selectedDocName.replace(/\.docx?$/, '')}.docx`;
+      let newFileName = `(완료) ${selectedDocName.replace(/\.docx?$/, '')}.docx`;
       setResultFileName(newFileName);
-
-      // 실시간 결과 표시
-      setProcessedDocs([{
-        fileName: newFileName,
-        response: extractedText
-      }]);
+      setProcessedDocs([{ fileName: newFileName, response: extractedText }]);
       setProcessingStatus('문서 처리가 완료되었습니다.');
-
     } catch (error) {
       console.error('문서 처리 중 전체 오류:', error);
       setErrors([error.message || '문서 처리 중 오류가 발생했습니다.']);
@@ -213,62 +248,60 @@ function MainPage() {
   const canProceed = uploadedImages.length > 0 && selectedDocxDocs.length > 0 && !isLoading;
 
   return (
-      <Container>
-        <Title>AI Challenge - 문서 처리 시스템</Title>
-        <Section>
-          <ProcessFlow>
+      <PageLayout>
+        {/* [수정] Title을 PageLayout의 첫 번째 자식으로 이동 */}
+        <Title>
+          <LogoImage src={logoImage} alt="AI 문서 자동화 시스템 로고" />
+          AI 문서 자동화 시스템
+        </Title>
+
+        <InputArea>
+          <InputGrid>
             <Step>
-              <StepNumber>1. 이미지 업로드</StepNumber>
-              <ImageUpload onFilesChange={handleImagesChange} />
+              <StepTitle isCompleted={uploadedImages.length > 0}>
+                1. 이미지 업로드
+              </StepTitle>
+              <StepContent>
+                <ImageUpload onFilesChange={handleImagesChange} />
+              </StepContent>
             </Step>
-
             <Step>
-              <StepNumber>2. 문서 템플릿 선택</StepNumber>
-              <DocSelector onDocsSelect={handleDocxSelect} />
+              <StepTitle isCompleted={selectedDocxDocs.length > 0}>
+                2. 문서 템플릿 선택
+              </StepTitle>
+              <StepContent>
+                <DocSelector onDocsSelect={handleDocxSelect} />
+              </StepContent>
             </Step>
+          </InputGrid>
+          <ActionButtonWrapper>
+            <GenerateButton onClick={handleProcessDocs} disabled={!canProceed}>
+              {isLoading ? '생성 중...' : '문서 생성하기'}
+            </GenerateButton>
+          </ActionButtonWrapper>
+        </InputArea>
 
-            <ArrowButton
-                onClick={handleProcessDocs}
-                disabled={!canProceed}
-                title={
-                  canProceed
-                      ? '문서 처리 시작'
-                      : '이미지와 문서 템플릿을 모두 선택해주세요'
-                }
-            >
-              {isLoading ? '🔄' : '→'}
-            </ArrowButton>
+        <OutputArea>
+          {!isLoading && errors.length === 0 && processedDocs.length === 0 && (
+              <ResultsPlaceholder>
+                <p>결과가 여기에 표시됩니다.</p>
+              </ResultsPlaceholder>
+          )}
 
-            <Step>
-              <StepNumber>3. 처리 결과 및 다운로드</StepNumber>
-
-              {processingStatus && (
-                  <ProcessingStatus>{processingStatus}</ProcessingStatus>
-              )}
-
-              {errors.length > 0 && (
-                  <div>
-                    {errors.map((error, index) => (
-                        <ErrorMessage key={index}>{error}</ErrorMessage>
-                    ))}
-                  </div>
-              )}
-
-              {/* 실시간 결과가 있을 때만 다운로드 버튼 표시 */}
-              {downloadUrl && (
-                  <DownloadButton href={downloadUrl} download={resultFileName}>
-                    결과 파일 다운로드
-                  </DownloadButton>
-              )}
-
-              <ProcessedDocs
-                  docs={processedDocs} // <-- 'realtimeDocs' 대신 'docs'로 변경
-                  isLoading={isLoading}
-              />
-            </Step>
-          </ProcessFlow>
-        </Section>
-      </Container>
+          {(isLoading || errors.length > 0 || processedDocs.length > 0) && (
+              <ResultsWrapper>
+                {isLoading && <ProcessingStatus>{processingStatus}</ProcessingStatus>}
+                {errors.length > 0 && errors.map((error, index) => <ErrorMessage key={index}>{error}</ErrorMessage>)}
+                {processedDocs.length > 0 && (
+                    <>
+                      <ProcessedDocs docs={processedDocs} isLoading={isLoading} />
+                      {downloadUrl && <DownloadButton href={downloadUrl} download={resultFileName}>결과 파일 다운로드</DownloadButton>}
+                    </>
+                )}
+              </ResultsWrapper>
+          )}
+        </OutputArea>
+      </PageLayout>
   );
 }
 

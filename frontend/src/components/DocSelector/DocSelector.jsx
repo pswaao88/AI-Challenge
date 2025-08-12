@@ -3,36 +3,33 @@ import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { fetchDocuments } from '../../services/documentService';
 
+// [수정] Container를 flexbox 레이아웃으로 변경하여 내부 요소 제어
 const Container = styled.div`
   width: 100%;
-  min-width: 250px;
+  height: 100%; /* 부모(StepContent)의 높이를 100% 사용 */
   background-color: #f8f8f8;
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
 `;
 
-const Title = styled.h3`
-  margin-bottom: 15px;
-  color: #333;
-  font-size: 1.1rem;
-  text-align: center;
-`;
+// [삭제] 사용하지 않는 Title 컴포넌트 제거
 
+// [수정] DocList가 남은 공간을 모두 차지하고 스크롤되도록 변경
 const DocList = styled.div`
-  min-height: 200px;
-  max-height: 400px;
+  flex: 1; /* 핵심: 남은 수직 공간을 모두 차지 */
+  min-height: 0; /* flex 자식 요소의 스크롤을 위해 필요 */
   overflow-y: auto;
   margin-bottom: 15px;
 
   &::-webkit-scrollbar {
     width: 6px;
   }
-
   &::-webkit-scrollbar-track {
     background: #f1f1f1;
   }
-
   &::-webkit-scrollbar-thumb {
     background: #888;
     border-radius: 3px;
@@ -47,11 +44,10 @@ const DocItem = styled.div`
   background: white;
   border-radius: 4px;
   border: 1px solid #ddd;
-  position: relative; // 삭제 버튼의 절대 위치 기준점
+  position: relative;
 
   &:hover {
     background: #f0f7ff;
-
     .delete-button {
       opacity: 1;
       visibility: visible;
@@ -60,26 +56,27 @@ const DocItem = styled.div`
 `;
 
 const DeleteButton = styled.button`
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background-color: #ff4444;
+  /* position, top, right 속성 제거 */
+  background-color: rgba(3, 78, 162, 1);
   color: white;
   border: none;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: bold;
   cursor: pointer;
   opacity: 0;
-  visibility: hidden;
   transition: all 0.2s ease;
-  
+
+  margin-left: 12px; /* 파일 이름과의 간격을 위해 추가 */
+  flex-shrink: 0;    /* 버튼 크기가 줄어들지 않도록 설정 */
+
   &:hover {
-    background-color: #cc0000;
+    background-color: rgba(0, 0, 0, 0.9);
+  }
+
+  ${DocItem}:hover & {
+    opacity: 1;
   }
 `;
 
@@ -95,14 +92,13 @@ const DocName = styled.span`
   flex: 1;
   font-size: 0.9rem;
   color: #444;
-  margin-right: 30px; // 삭제 버튼을 위한 여백
 `;
 
-
+// [수정] UploadSection이 줄어들지 않도록 설정
 const UploadSection = styled.div`
   border-top: 1px solid #ddd;
   padding-top: 15px;
-  margin-top: 15px;
+  flex-shrink: 0; /* 버튼 영역이 줄어드는 것을 방지 */
 `;
 
 const UploadButton = styled.button`
@@ -114,7 +110,7 @@ const UploadButton = styled.button`
   cursor: pointer;
   width: 100%;
   font-size: 0.9rem;
-  
+
   &:hover {
     background-color: #218838;
   }
@@ -125,6 +121,7 @@ const SelectedCount = styled.div`
   margin-bottom: 10px;
   font-size: 0.9rem;
   color: #666;
+  flex-shrink: 0; /* 카운트 영역이 줄어드는 것을 방지 */
 `;
 
 const HiddenInput = styled.input`
@@ -133,11 +130,10 @@ const HiddenInput = styled.input`
 
 function DocSelector({ onDocsSelect }) {
   const [docs, setDocs] = useState([]);
-  const [dbDocs, setDbDocs] = useState([]); // DB 문서 목록 추가
+  const [dbDocs, setDbDocs] = useState([]);
   const [selectedDocs, setSelectedDocs] = useState(new Set());
   const fileInputRef = useRef(null);
 
-  // DB 문서 목록 로드
   useEffect(() => {
     loadDbDocuments();
   }, []);
@@ -151,6 +147,18 @@ function DocSelector({ onDocsSelect }) {
     }
   };
 
+  // onDocsSelect가 변경될 때마다 호출되지 않도록 수정
+  const onDocsSelectRef = useRef(onDocsSelect);
+  onDocsSelectRef.current = onDocsSelect;
+
+  useEffect(() => {
+    const selectedDocsList = [
+      ...docs.filter(doc => selectedDocs.has(doc.id)),
+      ...dbDocs.filter(doc => selectedDocs.has(doc.id))
+    ];
+    onDocsSelectRef.current(selectedDocsList);
+  }, [selectedDocs, docs, dbDocs]);
+
   const handleDocSelect = (docId) => {
     setSelectedDocs(prev => {
       const newSelected = new Set(prev);
@@ -163,14 +171,6 @@ function DocSelector({ onDocsSelect }) {
     });
   };
 
-  useEffect(() => {
-    const selectedDocsList = [
-      ...docs.filter(doc => selectedDocs.has(doc.id)),
-      ...dbDocs.filter(doc => selectedDocs.has(doc.id))
-    ];
-    onDocsSelect(selectedDocsList);
-  }, [selectedDocs, docs, dbDocs, onDocsSelect]);
-
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
@@ -179,29 +179,27 @@ function DocSelector({ onDocsSelect }) {
         name: file.name,
         file: file
       }));
-
       setDocs(prevDocs => [...prevDocs, ...newDocs]);
     }
     e.target.value = '';
   };
 
   const handleDeleteDoc = (docId) => {
-    const updatedDocs = docs.filter(doc => doc.id !== docId);
-    setDocs(updatedDocs);
-    const updatedSelected = new Set(selectedDocs);
-    updatedSelected.delete(docId);
-    setSelectedDocs(updatedSelected);
+    setDocs(prevDocs => prevDocs.filter(doc => doc.id !== docId));
+    setSelectedDocs(prevSelected => {
+      const newSelected = new Set(prevSelected);
+      newSelected.delete(docId);
+      return newSelected;
+    });
   };
 
   return (
       <Container>
-        <Title>문서 템플릿 선택</Title>
         <SelectedCount>
           선택된 문서: {selectedDocs.size}개
         </SelectedCount>
 
         <DocList>
-          {/* 업로드된 문서 목록 */}
           {docs.map(doc => (
               <DocItem key={doc.id}>
                 <Checkbox
@@ -217,12 +215,10 @@ function DocSelector({ onDocsSelect }) {
                       handleDeleteDoc(doc.id);
                     }}
                 >
-                  ×
+                  삭제
                 </DeleteButton>
               </DocItem>
           ))}
-
-          {/* DB 문서 목록 - 삭제 버튼 없음 */}
           {dbDocs.map(doc => (
               <DocItem key={`db-${doc.id}`}>
                 <Checkbox
@@ -243,7 +239,7 @@ function DocSelector({ onDocsSelect }) {
               type="file"
               ref={fileInputRef}
               onChange={handleFileUpload}
-              accept=".doc,.docx,.pdf"
+              accept=".doc,.docx"
               multiple
           />
         </UploadSection>
