@@ -37,7 +37,6 @@ public class GptService {
                 .messages(Arrays.asList(
                     new ChatMessage("user", prompt)
                 ))
-                .maxTokens(128)
                 .temperature(0.7)
                 .n(1)
                 .build();

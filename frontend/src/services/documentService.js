@@ -61,7 +61,7 @@ export const downloadProcessedDocument = async (fileName) => {
 };
 
 // Gemini API로 이미지 처리
-export const processImageWithGemini = async (prompt, images) => {
+export const processImageWithGemini = async (images) => {
   const formData = new FormData();
   formData.append('prompt', prompt);
 
@@ -69,7 +69,7 @@ export const processImageWithGemini = async (prompt, images) => {
     formData.append('images', image.file);
   });
 
-  return await apiClient.post('/gemini/generate', formData, {
+  return await apiClient.post('/gemini/generate/images', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },

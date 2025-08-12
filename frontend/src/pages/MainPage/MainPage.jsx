@@ -213,7 +213,7 @@ function MainPage() {
     setResultFileName('');
     try {
       setProcessingStatus('이미지에서 텍스트를 추출하고 있습니다...');
-      const geminiResponse = await processImageWithGemini("이미지에서 텍스트를 추출하고 깔끔하게 정리해주세요. 추출된 텍스트를 기반으로 문서를 작성해주세요.", uploadedImages);
+      const geminiResponse = await processImageWithGemini(uploadedImages);
       const extractedText = geminiResponse.data.map(item => item.response).join('\n\n');
       const uploadedDocuments = [];
       for (let doc of selectedDocxDocs) {

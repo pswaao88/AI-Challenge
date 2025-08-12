@@ -29,16 +29,38 @@ public class GeminiController {
         this.geminiService = geminiService;
     }
 
-    @PostMapping("/generate")
-    public ResponseEntity<List<Map<String, String>>> generateResponse(
-        @RequestParam Map<String, String> request,
+    @PostMapping("/generate/images")
+    public ResponseEntity<List<Map<String, String>>> generateResponseFromImages(
         @RequestParam("images") List<MultipartFile> images) {
+        try {
+            List<Map<String, String>> responses = new ArrayList<>();
+
+            for (MultipartFile image : images) {
+                String response = geminiService.extractTextFromImageByGemini(image);
+                Map<String, String> responseMap = new HashMap<>();
+                responseMap.put("fileName", image.getOriginalFilename());
+                responseMap.put("response", response);
+                responses.add(responseMap);
+            }
+
+            return ResponseEntity.ok(responses);
+        } catch (Exception e) {
+            log.error("이미지 처리 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(List.of(Map.of("error", "이미지 처리 실패")));
+        }
+
+    }
+    @PostMapping("/generate/files")
+    public ResponseEntity<List<Map<String, String>>> generateResponseFromFiles(
+        @RequestParam Map<String, String> request,
+        @RequestParam("documents") List<MultipartFile> documents) {
         try {
             String prompt = request.get("prompt");
             List<Map<String, String>> responses = new ArrayList<>();
 
             for (MultipartFile image : images) {
-                String response = geminiService.extractTextFromImageByGemini(prompt, image);
+                String response = geminiService.extractTextFromImageByGemini(image);
                 Map<String, String> responseMap = new HashMap<>();
                 responseMap.put("fileName", image.getOriginalFilename());
                 responseMap.put("response", response);

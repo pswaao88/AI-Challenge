@@ -2,7 +2,10 @@ package AI_Challenge.AI_Challenge.domain.document.service;
 
 import AI_Challenge.AI_Challenge.domain.document.entity.Document;
 import AI_Challenge.AI_Challenge.domain.document.repository.DocumentRepository;
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
@@ -157,29 +160,6 @@ public class DocumentService {
         return processedDocs;
     }
 
-    // 문서 처리 및 다운로드용 바이트 배열 생성 (기존 메서드 유지)
-    @Transactional
-    public byte[] processDocumentForDownload(Long documentId) throws Exception {
-        Document document = documentRepository.findById(documentId)
-            .orElseThrow(() -> new RuntimeException("문서를 찾을 수 없습니다: " + documentId));
-
-        return document.getContent();
-    }
-
-    // 완료된 파일명 생성 (기존 메서드)
-    public String getCompletedFileName(String originalFileName) {
-        String extension = "";
-        String nameWithoutExt = originalFileName;
-
-        int dotIndex = originalFileName.lastIndexOf('.');
-        if (dotIndex > 0) {
-            extension = originalFileName.substring(dotIndex);
-            nameWithoutExt = originalFileName.substring(0, dotIndex);
-        }
-
-        return "(완료) " + nameWithoutExt + extension;
-    }
-
     // 결과 파일명 생성 (새로운 네이밍 규칙)
     private String generateResultFileName(String originalFileName) {
         String extension = "";
@@ -195,12 +175,93 @@ public class DocumentService {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
         return String.format("(완료)%s_%s%s", nameWithoutExt, timestamp, extension);
     }
+    // Docx를 마크다운으로
+    public String convertDocxToMarkdown(MultipartFile docxFile) throws IOException, InterruptedException {
+        // 1. 임시 DOCX 파일 생성 및 내용 쓰기
+        Path tempInputFile = Files.createTempFile("input_", ".docx");
+        docxFile.transferTo(tempInputFile);
 
-    // Markdown을 DOCX로 변환 (추후 구현)
-    public byte[] convertMarkdownToDocx(String markdownContent) throws Exception {
-        // TODO: Markdown을 DOCX로 변환하는 로직 구현
-        // 현재는 간단한 텍스트 파일로 반환
-        return markdownContent.getBytes("UTF-8");
+        log.info("DOCX를 마크다운으로 변환 시작: {}", tempInputFile);
+
+        String markdownContent;
+        try {
+            // 2. Pandoc 명령어 실행 준비
+            ProcessBuilder processBuilder = new ProcessBuilder(
+                "pandoc",
+                "-f", "docx",      // 입력 포맷: docx
+                "-t", "markdown",  // 출력 포맷: markdown
+                tempInputFile.toAbsolutePath().toString()
+            );
+
+            // 3. Pandoc 실행 및 결과 읽기
+            Process process = processBuilder.start();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                StringBuilder result = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    result.append(line).append("\n");
+                }
+                markdownContent = result.toString();
+            }
+
+            // 4. 프로세스 에러 처리
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                String errorOutput = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
+                log.error("Pandoc 실행 오류 (Exit code: {}): {}", exitCode, errorOutput);
+                throw new RuntimeException("DOCX를 Markdown으로 변환하는 데 실패했습니다.");
+            }
+        } finally {
+            // 5. 임시 파일 삭제
+            Files.deleteIfExists(tempInputFile);
+            log.info("임시 파일 삭제 완료: {}", tempInputFile);
+        }
+        return markdownContent;
+    }
+
+    // 마크다운을 Docx로
+    public byte[] convertMarkdownToDocx(String markdownContent) throws IOException, InterruptedException {
+        // 1. 임시 마크다운 파일 생성 및 내용 쓰기
+        Path tempInputFile = Files.createTempFile("input_", ".md");
+        Files.writeString(tempInputFile, markdownContent, StandardCharsets.UTF_8);
+
+        // 2. 변환된 DOCX가 저장될 임시 출력 파일 경로 지정
+        Path tempOutputFile = Files.createTempFile("output_", ".docx");
+
+        log.info("마크다운을 DOCX로 변환 시작. 입력: {}, 출력: {}", tempInputFile, tempOutputFile);
+
+        byte[] docxBytes;
+        try {
+            // 3. Pandoc 명령어 실행 준비
+            ProcessBuilder processBuilder = new ProcessBuilder(
+                "pandoc",
+                "-f", "markdown", // 입력 포맷: markdown
+                "-t", "docx",     // 출력 포맷: docx
+                "-o", tempOutputFile.toAbsolutePath().toString(), // 출력 파일 경로 지정
+                tempInputFile.toAbsolutePath().toString()
+            );
+
+            // 4. Pandoc 실행 및 종료 대기
+            Process process = processBuilder.start();
+            int exitCode = process.waitFor();
+
+            // 5. 프로세스 에러 처리
+            if (exitCode != 0) {
+                String errorOutput = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
+                log.error("Pandoc 실행 오류 (Exit code: {}): {}", exitCode, errorOutput);
+                throw new RuntimeException("Markdown을 DOCX로 변환하는 데 실패했습니다.");
+            }
+
+            // 6. 생성된 DOCX 파일의 내용을 byte 배열로 읽기
+            docxBytes = Files.readAllBytes(tempOutputFile);
+
+        } finally {
+            // 7. 사용한 임시 파일 모두 삭제
+            Files.deleteIfExists(tempInputFile);
+            Files.deleteIfExists(tempOutputFile);
+            log.info("임시 파일 삭제 완료: {}, {}", tempInputFile, tempOutputFile);
+        }
+        return docxBytes;
     }
 
     private void validateFile(MultipartFile file) {
