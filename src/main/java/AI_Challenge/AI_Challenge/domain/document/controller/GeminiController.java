@@ -55,24 +55,12 @@ public class GeminiController {
     public ResponseEntity<List<Map<String, String>>> generateResponseFromFiles(
         @RequestParam Map<String, String> request,
         @RequestParam("documents") List<MultipartFile> documents) {
-        try {
-            String prompt = request.get("prompt");
-            List<Map<String, String>> responses = new ArrayList<>();
+        return generateResponseFromImages(documents);
 
-            for (MultipartFile image : images) {
-                String response = geminiService.extractTextFromImageByGemini(image);
-                Map<String, String> responseMap = new HashMap<>();
-                responseMap.put("fileName", image.getOriginalFilename());
-                responseMap.put("response", response);
-                responses.add(responseMap);
-            }
-
-            return ResponseEntity.ok(responses);
-        } catch (Exception e) {
-            log.error("이미지 처리 중 오류 발생", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(List.of(Map.of("error", "이미지 처리 실패")));
-        }
-
+    }
+    @PostMapping("/generate/test/files")
+    public ResponseEntity<String> testGenerateResponseFromFiles(
+        @RequestParam("document") MultipartFile document) {
+        return ResponseEntity.ok(geminiService.extractTextFromDocByGemini(document));
     }
 }
