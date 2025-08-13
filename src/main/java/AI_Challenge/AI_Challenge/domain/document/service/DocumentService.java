@@ -197,7 +197,10 @@ public class DocumentService {
             ProcessBuilder processBuilder = new ProcessBuilder(
                 "pandoc",
                 "-f", "docx",      // 입력 포맷: docx
-                "-t", "markdown",  // 출력 포맷: markdown
+                // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+                // 수정된 부분: 기본 markdown 대신 gfm(GitHub Flavored Markdown) 사용
+                "-t", "gfm",
+                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                 tempInputFile.toAbsolutePath().toString()
             );
 
@@ -244,7 +247,10 @@ public class DocumentService {
             // 3. Pandoc 명령어 실행 준비
             ProcessBuilder processBuilder = new ProcessBuilder(
                 "pandoc",
-                "-f", "markdown", // 입력 포맷: markdown
+                // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+                // 수정된 부분: 입력 포맷을 gfm으로 지정
+                "-f", "gfm",
+                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                 "-t", "docx",     // 출력 포맷: docx
                 "-o", tempOutputFile.toAbsolutePath().toString(), // 출력 파일 경로 지정
                 tempInputFile.toAbsolutePath().toString()
