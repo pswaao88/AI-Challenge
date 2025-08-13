@@ -60,7 +60,7 @@ public class GeminiController {
     }
     @PostMapping("/generate/test/files")
     public ResponseEntity<String> testGenerateResponseFromFiles(
-        @RequestParam("document") MultipartFile document) {
-        return ResponseEntity.ok(geminiService.extractTextFromDocByGemini(document));
+        @RequestParam("markdown") String markdown) {
+        return ResponseEntity.ok(geminiService.makeJsonBefore(markdown));
     }
 }

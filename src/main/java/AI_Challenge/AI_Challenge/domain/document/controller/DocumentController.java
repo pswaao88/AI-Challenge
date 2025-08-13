@@ -3,11 +3,13 @@ package AI_Challenge.AI_Challenge.domain.document.controller;
 import AI_Challenge.AI_Challenge.domain.document.dto.MarkdownRequestDTO;
 import AI_Challenge.AI_Challenge.domain.document.entity.Document;
 import AI_Challenge.AI_Challenge.domain.document.service.DocumentService;
+import com.theokanning.openai.service.OpenAiService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -27,9 +29,11 @@ import org.springframework.web.multipart.MultipartFile;
 public class DocumentController {
 
     private final DocumentService documentService;
+    private final OpenAiService openAiService;
 
     @Autowired
-    public DocumentController(DocumentService documentService) {
+    public DocumentController(DocumentService documentService, @Value("${openai.api.key}") String apiKey) {
+        this.openAiService = new OpenAiService(apiKey);
         this.documentService = documentService;
     }
 
@@ -154,5 +158,10 @@ public class DocumentController {
             log.error("새로운 문서 생성 및 다운로드 중 오류 발생", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+    @PostMapping("/result")
+    public ResponseEntity<byte[]> makeResultDocuments(@RequestParam("text") String extractedText, @RequestParam("document") MultipartFile document) {
+        byte[] result = {};
+        return ResponseEntity.ok(result);
     }
 }

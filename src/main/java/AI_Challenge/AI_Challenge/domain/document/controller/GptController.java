@@ -27,8 +27,9 @@ public class GptController {
     @PostMapping("/generate")
     public ResponseEntity<Map<String, String>> generateResponse(@RequestBody Map<String, String> request) {
         try {
-            String prompt = request.get("prompt");
-            String response = gptService.generateResponse(prompt);
+            String inputJson = request.get("inputJson");
+            String inputText = request.get("inputText");
+            String response = gptService.generateResponse(inputJson, inputText);
 
             Map<String, String> responseBody = new HashMap<>();
             responseBody.put("response", response);

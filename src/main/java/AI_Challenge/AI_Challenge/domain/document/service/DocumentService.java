@@ -2,6 +2,7 @@ package AI_Challenge.AI_Challenge.domain.document.service;
 
 import AI_Challenge.AI_Challenge.domain.document.entity.Document;
 import AI_Challenge.AI_Challenge.domain.document.repository.DocumentRepository;
+import com.theokanning.openai.service.OpenAiService;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
@@ -15,6 +16,7 @@ import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
@@ -33,18 +35,24 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class DocumentService {
 
     private final DocumentRepository documentRepository;
     private final GeminiService geminiService;
+    private final GptService gptService;
 
     @Value("${document.upload.path}")
     private String uploadPath;
 
     @Value("${document.result.path}")
     private String resultPath;
+
+    public DocumentService(DocumentRepository documentRepository, GeminiService geminiService, GptService gptService) {
+        this.documentRepository = documentRepository;
+        this.geminiService = geminiService;
+        this.gptService = gptService;
+    }
 
     @Transactional(readOnly = true)
     public List<Document> getAllDocuments() {
@@ -309,5 +317,16 @@ public class DocumentService {
             log.error("DOCX 파일 생성 중 오류 발생", e);
             throw new RuntimeException("DOCX 파일 생성 실패", e);
         }
+    }
+    public byte[] finalLogic(String extractedText, MultipartFile document)throws IOException, InterruptedException{
+        // Docx를 Markdown으로 변경
+        String markdownContentBefore = convertDocxToMarkdown(document);
+        // Markdown을 JSON으로 변경
+        String jsonBefore = geminiService.makeJsonBefore(markdownContentBefore);
+        // JSON을 완성된 JSON으로 변경
+        String jsonAfter = gptService.generateResponse(jsonBefore, extractedText);
+        //
+        String makeMarkDownResult = geminiService.makeJsonToMarkDown(markdownContentBefore, jsonAfter);
+        return convertMarkdownToDocx(makeMarkDownResult);
     }
 }
