@@ -1,10 +1,8 @@
 package AI_Challenge.AI_Challenge.domain.document.controller;
 
-import AI_Challenge.AI_Challenge.domain.document.dto.MarkdownRequestDTO;
 import AI_Challenge.AI_Challenge.domain.document.entity.Document;
 import AI_Challenge.AI_Challenge.domain.document.service.DocumentService;
 import com.theokanning.openai.service.OpenAiService;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;

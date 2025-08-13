@@ -62,8 +62,8 @@ dependencies {
 
 	implementation 'org.docx4j:docx4j-core:8.3.9'
 	implementation 'org.docx4j:docx4j-JAXB-ReferenceImpl:8.3.9'
-	implementation 'org.glassfish.jaxb:jaxb-runtime:2.3.1'
-	implementation 'jakarta.xml.bind:jakarta.xml.bind-api:2.3.2'
+	implementation 'org.glassfish.jaxb:jaxb-runtime'
+
 }
 
 tasks.named('test') {

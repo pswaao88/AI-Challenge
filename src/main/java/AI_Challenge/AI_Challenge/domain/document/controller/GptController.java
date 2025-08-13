@@ -41,6 +41,4 @@ public class GptController {
                 .body(Map.of("error", "GPT 응답 생성 실패"));
         }
     }
-
-
 }
