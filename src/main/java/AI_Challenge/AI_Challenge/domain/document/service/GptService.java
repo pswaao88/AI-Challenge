@@ -1,6 +1,9 @@
 package AI_Challenge.AI_Challenge.domain.document.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.theokanning.openai.OpenAiHttpException;
+import com.theokanning.openai.client.AuthenticationInterceptor;
+import com.theokanning.openai.client.OpenAiApi;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatCompletionResult;
 import com.theokanning.openai.completion.chat.ChatMessage;
@@ -9,6 +12,7 @@ import com.theokanning.openai.service.OpenAiService;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +25,8 @@ import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import retrofit2.Retrofit;
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 
 @Service
 @Slf4j
@@ -29,12 +35,7 @@ public class GptService {
     private final OpenAiService openAiService;
 
     public GptService(@Value("${openai.api.key}") String apiKey) {
-        OkHttpClient client = new OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)  // 연결 타임아웃
-            .writeTimeout(30, TimeUnit.SECONDS)    // 쓰기 타임아웃
-            .readTimeout(60, TimeUnit.SECONDS)     // 읽기 타임아웃 (응답 대기 시간)
-            .build();
-        this.openAiService = new OpenAiService(apiKey);
+        this.openAiService = new OpenAiService(apiKey, Duration.ofSeconds(60));
     }
 
     public String generateResponse(String inputJson, String inputText) {
