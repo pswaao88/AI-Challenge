@@ -10,7 +10,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
@@ -27,6 +29,11 @@ public class GptService {
     private final OpenAiService openAiService;
 
     public GptService(@Value("${openai.api.key}") String apiKey) {
+        OkHttpClient client = new OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)  // 연결 타임아웃
+            .writeTimeout(30, TimeUnit.SECONDS)    // 쓰기 타임아웃
+            .readTimeout(60, TimeUnit.SECONDS)     // 읽기 타임아웃 (응답 대기 시간)
+            .build();
         this.openAiService = new OpenAiService(apiKey);
     }
 
