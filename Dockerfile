@@ -4,6 +4,8 @@ FROM eclipse-temurin:21-jdk-jammy
 # 작업 디렉토리 설정
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y pandoc
+
 # Gradle 빌드 파일들 복사
 COPY gradlew .
 COPY gradle gradle
