@@ -10,6 +10,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
@@ -374,34 +376,42 @@ public class DocumentService {
      * [신규] 문단 내의 자리 표시자를 교체하는 private 헬퍼 메서드입니다.
      */
     private void replacePlaceholdersInParagraph(XWPFParagraph paragraph, Map<String, String> data) {
-        // 1. 문단의 모든 텍스트를 하나의 StringBuilder로 합치고, 기존 Run 정보를 저장합니다.
+        // 1. 문단 전체의 텍스트와 모든 Run을 합치고 기존 Run 정보를 저장합니다.
         StringBuilder fullTextBuilder = new StringBuilder();
         for (XWPFRun run : paragraph.getRuns()) {
-            fullTextBuilder.append(run.getText(0));
+            if (run.getText(0) != null) {
+                fullTextBuilder.append(run.getText(0));
+            }
         }
-
         String fullText = fullTextBuilder.toString();
-        if (fullText == null || !fullText.contains("{{")) {
+
+        // 2. 플레이스홀더가 없으면 바로 반환합니다.
+        if (fullText == null || !fullText.contains("{{") || !fullText.contains("}}")) {
             return;
         }
 
-        // 2. 합쳐진 텍스트에서 플레이스홀더를 교체합니다.
+        // 3. 합쳐진 텍스트에서 플레이스홀더를 찾아 교체합니다.
         String replacedText = fullText;
-        for (Map.Entry<String, String> entry : data.entrySet()) {
-            String placeholder = "{{" + entry.getKey() + "}}";
-            if (replacedText.contains(placeholder)) {
-                replacedText = replacedText.replace(placeholder, entry.getValue());
+        Pattern pattern = Pattern.compile("\\{\\{([^}]+)}}");
+        Matcher matcher = pattern.matcher(fullText);
+
+        while (matcher.find()) {
+            String placeholderKey = matcher.group(1).trim();
+            // dataMap의 키를 사용하여 값을 찾습니다.
+            if (data.containsKey(placeholderKey)) {
+                String value = data.get(placeholderKey);
+                replacedText = replacedText.replace("{{" + placeholderKey + "}}", value);
             }
         }
 
-        // 3. 텍스트에 변경이 있었을 경우에만 Run을 교체합니다.
+        // 4. 텍스트에 변경이 있었을 경우에만 Run을 교체합니다.
         if (!fullText.equals(replacedText)) {
             // 기존의 모든 Run을 삭제
             while (!paragraph.getRuns().isEmpty()) {
                 paragraph.removeRun(0);
             }
 
-            // 4. 교체된 텍스트로 새로운 Run을 생성
+            // 교체된 텍스트로 새로운 Run을 생성
             paragraph.createRun().setText(replacedText);
         }
     }
