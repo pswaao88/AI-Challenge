@@ -2,7 +2,9 @@ package AI_Challenge.AI_Challenge.domain.document.service;
 
 import AI_Challenge.AI_Challenge.domain.document.entity.Document;
 import AI_Challenge.AI_Challenge.domain.document.repository.DocumentRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -10,6 +12,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
@@ -330,12 +334,42 @@ public class DocumentService {
     /**
      * 중첩된 JSON을 평탄한 Map으로 변환
      */
-    private Map<String, String> flattenJsonToMap(String jsonString) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> jsonMap = mapper.readValue(jsonString, new TypeReference<>() {});
-        Map<String, String> flattenedMap = new HashMap<>();
-        flattenRecursively(flattenedMap, jsonMap, "");
-        return flattenedMap;
+    public Map<String, String> flattenJsonToMap(String jsonString) {
+        Map<String, String> dataMap = new HashMap<>();
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        try {
+            JsonNode rootNode = objectMapper.readTree(jsonString);
+            flattenNodeWithLabel(rootNode, dataMap);
+        } catch (JsonProcessingException e) {
+            log.error("JSON 파싱 에러", e);
+        }
+        return dataMap;
+    }
+
+    private void flattenNodeWithLabel(JsonNode node, Map<String, String> map) {
+        if (node.isObject()) {
+            if (node.has("label") && node.has("value")) {
+                // "label"과 "value"를 가진 객체는 key-value로 직접 추가
+                map.put(node.get("label").asText(), node.get("value").asText());
+            } else {
+                Iterator<Entry<String, JsonNode>> fields = node.fields();
+                while (fields.hasNext()) {
+                    Map.Entry<String, JsonNode> field = fields.next();
+                    flattenNodeWithLabel(field.getValue(), map);
+                }
+            }
+        } else if (node.isArray()) {
+            for (JsonNode arrayElement : node) {
+                flattenNodeWithLabel(arrayElement, map);
+            }
+        } else {
+            // "title", "recipient"과 같은 최상위 key-value 쌍 처리
+            if (node.isTextual()) {
+                // 이 부분은 최상위 레벨의 key-value를 처리하도록 추가 로직 필요
+                // ex) if (node.isTextual() && node.parent().isObject())
+            }
+        }
     }
 
     /**
@@ -376,7 +410,7 @@ public class DocumentService {
      * [신규] 문단 내의 자리 표시자를 교체하는 private 헬퍼 메서드입니다.
      */
     private void replacePlaceholdersInParagraph(XWPFParagraph paragraph, Map<String, String> data) {
-        // 1. 문단 전체의 텍스트와 모든 Run을 합치고 기존 Run 정보를 저장합니다.
+        // 1. 문단 전체의 텍스트를 하나로 합침
         StringBuilder fullTextBuilder = new StringBuilder();
         for (XWPFRun run : paragraph.getRuns()) {
             if (run.getText(0) != null) {
@@ -385,34 +419,32 @@ public class DocumentService {
         }
         String fullText = fullTextBuilder.toString();
 
-        // 2. 플레이스홀더가 없으면 바로 반환합니다.
+        // 2. 플레이스홀더가 없으면 바로 반환
         if (fullText == null || !fullText.contains("{{") || !fullText.contains("}}")) {
             return;
         }
 
-        // 3. 합쳐진 텍스트에서 플레이스홀더를 찾아 교체합니다.
+        // 3. 정규식을 이용해 플레이스홀더를 찾아 교체
         String replacedText = fullText;
-        Pattern pattern = Pattern.compile("\\{\\{([^}]+)}}");
+        Pattern pattern = Pattern.compile("\\{\\{([^}]+)\\}\\}");
         Matcher matcher = pattern.matcher(fullText);
 
         while (matcher.find()) {
             String placeholderKey = matcher.group(1).trim();
-            // dataMap의 키를 사용하여 값을 찾습니다.
+            // dataMap에서 키를 찾아 값을 교체
             if (data.containsKey(placeholderKey)) {
                 String value = data.get(placeholderKey);
                 replacedText = replacedText.replace("{{" + placeholderKey + "}}", value);
             }
         }
 
-        // 4. 텍스트에 변경이 있었을 경우에만 Run을 교체합니다.
+        // 4. 변경된 내용이 있을 때만 Run 재구성
         if (!fullText.equals(replacedText)) {
-            // 기존의 모든 Run을 삭제
             while (!paragraph.getRuns().isEmpty()) {
                 paragraph.removeRun(0);
             }
-
-            // 교체된 텍스트로 새로운 Run을 생성
-            paragraph.createRun().setText(replacedText);
+            XWPFRun newRun = paragraph.createRun();
+            newRun.setText(replacedText);
         }
     }
 }
