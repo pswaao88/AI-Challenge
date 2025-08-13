@@ -242,7 +242,7 @@ function MainPage() {
         setProcessingStatus(`'${doc.fileName}' 문서 처리 중...`);
 
         // API 호출 (기존 requestData 방식 유지)
-        const processResponse = await createAndDownloadDocument(extractedText, doc);
+        const processResponse = await createAndDownloadDocument(extractedText, doc.file);
 
         // 다운로드 가능한 URL 생성
         const url = window.URL.createObjectURL(new Blob([processResponse.data]));

@@ -76,8 +76,27 @@ export const processImageWithGemini = async (images) => {
   });
 };
 
-// **새로 추가된 함수**: 문서 템플릿과 텍스트를 결합하여 서버에 저장하고 파일 다운로드
 export const createAndDownloadDocument = async (extractedText, documentFile) => {
+  // ==================== 최종 디버깅 단계 ====================
+  console.log("API 함수가 전달받은 값:", {
+    text: extractedText,
+    file: documentFile
+  });
+
+  // 1. documentFile 변수가 아예 없는 경우 (undefined, null)
+  if (!documentFile) {
+    console.error("치명적 오류: documentFile 변수가 비어있습니다! API 호출을 중단합니다.");
+    // 에러를 발생시켜 상위의 catch 블록으로 이동시킵니다.
+    throw new Error("파일 데이터가 존재하지 않습니다. handleProcessDocs 함수를 확인해주세요.");
+  }
+
+  // 2. documentFile 변수가 실제 파일(File 객체)이 아닌 경우
+  if (!(documentFile instanceof File)) {
+    console.error("치명적 오류: 전달된 documentFile이 실제 파일 객체가 아닙니다!", documentFile);
+    throw new Error("전달된 데이터가 유효한 파일이 아닙니다. File 객체를 전달해야 합니다.");
+  }
+  // ==========================================================
+
   const formData = new FormData();
 
   // 백엔드 컨트롤러의 @RequestParam 이름과 정확히 일치시켜야 합니다.
