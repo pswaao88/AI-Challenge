@@ -77,8 +77,14 @@ export const processImageWithGemini = async (images) => {
 };
 
 // **새로 추가된 함수**: 문서 템플릿과 텍스트를 결합하여 서버에 저장하고 파일 다운로드
-export const createAndDownloadDocument = async (requestData) => {
-  return await apiClient.post('/document/create-and-download', requestData, {
-    responseType: 'blob', // 파일 다운로드를 위한 blob 타입
+export const createAndDownloadDocument = async (extractedText, documentFile) => {
+  const formData = new FormData();
+
+  // 백엔드 컨트롤러의 @RequestParam 이름과 정확히 일치시켜야 합니다.
+  formData.append('extractedText', extractedText);
+  formData.append('documentFile', documentFile);
+
+  return await apiClient.post('/document/create-and-download', formData, {
+    responseType: 'blob', // 서버가 byte[]를 반환하므로 blob 타입으로 받습니다.
   });
 };

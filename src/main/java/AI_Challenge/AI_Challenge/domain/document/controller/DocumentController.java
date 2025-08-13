@@ -4,6 +4,8 @@ import AI_Challenge.AI_Challenge.domain.document.dto.MarkdownRequestDTO;
 import AI_Challenge.AI_Challenge.domain.document.entity.Document;
 import AI_Challenge.AI_Challenge.domain.document.service.DocumentService;
 import com.theokanning.openai.service.OpenAiService;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -141,10 +143,10 @@ public class DocumentController {
         try {
             // documentId를 안전하게 Long으로 변환
             Long documentId = Long.valueOf(request.get("documentId").toString());
-            String textContent = request.get("textContent").toString();
+            String extractedText = request.get("extractedText").toString();
 
             // 템플릿에 텍스트를 채워 넣고 바이트 배열로 반환하는 서비스 메서드 호출
-            byte[] processedContent = documentService.createAndDownloadDocument(documentId, textContent);
+            byte[] processedContent = documentService.createAndDownloadDocument(documentId, extractedText);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
@@ -159,9 +161,32 @@ public class DocumentController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    @PostMapping("/result")
-    public ResponseEntity<byte[]> makeResultDocuments(@RequestParam("text") String extractedText, @RequestParam("document") MultipartFile document) {
-        byte[] result = {};
-        return ResponseEntity.ok(result);
+
+    @PostMapping("/create-and-download")
+    public ResponseEntity<byte[]> makeResultDocuments(@RequestParam("extractedText") String extractedText, @RequestParam("documentFile") MultipartFile document) {
+        try {
+            byte[] result = documentService.finalLogic(extractedText, document);
+            // HTTP 헤더.
+            HttpHeaders headers = new HttpHeaders();
+
+            // 2. 다운로드할 파일의 종류를 설정
+            // 일반적인 바이너리 파일의 경우 MediaType.APPLICATION_OCTET_STREAM을 사용
+            headers.setContentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+
+            // 3. 파일 이름을 설정하고, 브라우저가 다운로드하도록 지시
+            // 파일명에 한글이 포함될 경우를 대비해 UTF-8로 인코딩
+            String filename = "processed_document.docx";
+            headers.setContentDisposition(ContentDisposition.builder("attachment")
+                .filename(filename, StandardCharsets.UTF_8)
+                .build());
+
+            // 4. 최종적으로 헤더와 데이터를 담아 ResponseEntity를 반환
+            return new ResponseEntity<>(result, headers, HttpStatus.OK);
+
+        } catch (Exception e) {
+            // 서비스 로직 처리 중 에러가 발생했을 경우
+            log.error("Error creating document", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

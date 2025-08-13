@@ -202,45 +202,71 @@ function MainPage() {
   };
 
   const handleProcessDocs = async () => {
+    // 1. 초기 유효성 검사
     if (uploadedImages.length === 0 || selectedDocxDocs.length === 0) {
       setErrors(['이미지와 문서를 모두 선택해주세요.']);
       return;
     }
+
+    // 2. 처리 시작 전 상태 초기화
     setIsLoading(true);
     setErrors([]);
-    setProcessedDocs([]);
-    setDownloadUrl(null);
-    setResultFileName('');
+    setProcessedDocs([]); // 이전 결과 목록을 깨끗하게 비웁니다.
+
     try {
+      // 3. 이미지에서 텍스트 추출 (한 번만 수행)
       setProcessingStatus('이미지에서 텍스트를 추출하고 있습니다...');
       const geminiResponse = await processImageWithGemini(uploadedImages);
       const extractedText = geminiResponse.data.map(item => item.response).join('\n\n');
+
+      // 4. 문서 파일 업로드
       const uploadedDocuments = [];
       for (let doc of selectedDocxDocs) {
         if (doc.file) {
           setProcessingStatus(`문서 업로드 중: ${doc.name}`);
           const uploadResponse = await uploadDocument(doc.file);
-          uploadedDocuments.push(uploadResponse.data);
+          // uploadResponse.data에 file 객체가 없으므로, 원본 file을 함께 저장합니다.
+          uploadedDocuments.push({ ...uploadResponse.data, file: doc.file });
         } else {
+          // 이미 업로드된 문서의 경우 그대로 추가
           uploadedDocuments.push(doc);
         }
       }
+
+      // 5. 모든 문서를 순회하며 최종 결과물 생성
+      const processedResults = []; // 처리 완료된 모든 결과를 저장할 배열
       setProcessingStatus('최종 문서를 생성하고 있습니다...');
-      const selectedDocId = uploadedDocuments[0].id;
-      const selectedDocName = uploadedDocuments[0].fileName;
-      const requestData = { documentId: selectedDocId, textContent: extractedText };
-      const processResponse = await createAndDownloadDocument(requestData);
-      const url = window.URL.createObjectURL(new Blob([processResponse.data]));
-      setDownloadUrl(url);
-      let newFileName = `(완료) ${selectedDocName.replace(/\.docx?$/, '')}.docx`;
-      setResultFileName(newFileName);
-      setProcessedDocs([{ fileName: newFileName, response: extractedText }]);
-      setProcessingStatus('문서 처리가 완료되었습니다.');
+
+      for (const doc of uploadedDocuments) {
+        // 현재 어떤 파일이 처리 중인지 상태 메시지 업데이트
+        setProcessingStatus(`'${doc.fileName}' 문서 처리 중...`);
+
+        // API 호출 (기존 requestData 방식 유지)
+        const requestData = { extractedText: extractedText, documentFile: doc};
+        const processResponse = await createAndDownloadDocument(requestData);
+
+        // 다운로드 가능한 URL 생성
+        const url = window.URL.createObjectURL(new Blob([processResponse.data]));
+        const newFileName = `(완료) ${doc.fileName.replace(/\.docx?$/, '')}.docx`;
+
+        // 처리 결과를 객체 형태로 만들어 배열에 추가 (상태 업데이트 X)
+        processedResults.push({
+          fileName: newFileName,
+          downloadUrl: url,
+          response: extractedText,
+        });
+      }
+
+      // 6. 모든 작업 완료 후, 수집된 결과로 화면 상태를 '한 번만' 업데이트
+      setProcessedDocs(processedResults);
+      setProcessingStatus(`총 ${processedResults.length}개의 문서 처리가 완료되었습니다.`);
+
     } catch (error) {
       console.error('문서 처리 중 전체 오류:', error);
       setErrors([error.message || '문서 처리 중 오류가 발생했습니다.']);
       setProcessingStatus('');
     } finally {
+      // 7. 로딩 상태 종료
       setIsLoading(false);
     }
   };
