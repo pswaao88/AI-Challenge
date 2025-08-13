@@ -139,9 +139,9 @@ public class DocumentController {
     }
 
     @PostMapping("/create-and-download")
-    public ResponseEntity<byte[]> makeResultDocuments(@RequestParam("extractedText") String extractedText, @RequestParam("documentFile") MultipartFile document) {
+    public ResponseEntity<byte[]> makeResultDocuments(@RequestParam("extractedText") String extractedText, @RequestParam("documentFile") MultipartFile documentFile) {
         try {
-            byte[] result = documentService.finalLogic(extractedText, document);
+            byte[] result = documentService.finalLogic(extractedText, documentFile);
             // HTTP 헤더.
             HttpHeaders headers = new HttpHeaders();
 
