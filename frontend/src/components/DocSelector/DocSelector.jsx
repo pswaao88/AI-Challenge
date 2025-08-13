@@ -141,7 +141,12 @@ function DocSelector({ onDocsSelect }) {
   const loadDbDocuments = async () => {
     try {
       const response = await fetchDocuments();
-      setDbDocs(response.data);
+      // 서버에서 받은 데이터를 클라이언트 상태에 맞게 변환
+      const formattedDocs = response.data.map(doc => ({
+        ...doc,
+        name: doc.fileName // fileName을 name으로 복사
+      }));
+      setDbDocs(formattedDocs);
     } catch (err) {
       console.error('DB 문서 목록 로딩 에러:', err);
     }
@@ -153,8 +158,10 @@ function DocSelector({ onDocsSelect }) {
 
   useEffect(() => {
     const selectedDocsList = [
+      // docs 배열의 각 객체에는 이미 name과 file 속성이 있음
       ...docs.filter(doc => selectedDocs.has(doc.id)),
-      ...dbDocs.filter(doc => selectedDocs.has(doc.id))
+      // dbDocs 배열의 각 객체에는 name과 id가 있음
+      ...dbDocs.filter(doc => selectedDocs.has(doc.id)),
     ];
     onDocsSelectRef.current(selectedDocsList);
   }, [selectedDocs, docs, dbDocs]);
