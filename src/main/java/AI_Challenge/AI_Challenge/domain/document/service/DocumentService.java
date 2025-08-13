@@ -304,14 +304,13 @@ public class DocumentService {
         Map<String, String> dataMap = flattenJsonToMap(jsonAfter);
         System.out.println("dataMap: " + dataMap);
 
-        // 4. Apache POI를 사용해 DOCX 템플릿을 열고 자리 표시자를 교체합니다.
         try (XWPFDocument doc = new XWPFDocument(templateInputStream)) {
-            // 일반 문단 교체
+            // 일반 문단 교체: 문서 전체의 문단을 순회하며 교체
             for (XWPFParagraph p : doc.getParagraphs()) {
                 replacePlaceholdersInParagraph(p, dataMap);
             }
 
-            // 표 안의 내용 교체
+            // 표 안의 내용 교체: 표를 순회하며 텍스트를 교체
             for (XWPFTable table : doc.getTables()) {
                 for (XWPFTableRow row : table.getRows()) {
                     for (XWPFTableCell cell : row.getTableCells()) {
@@ -353,21 +352,20 @@ public class DocumentService {
                 // "label"과 "value"를 가진 객체는 key-value로 직접 추가
                 map.put(node.get("label").asText(), node.get("value").asText());
             } else {
-                Iterator<Entry<String, JsonNode>> fields = node.fields();
+                Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
                 while (fields.hasNext()) {
                     Map.Entry<String, JsonNode> field = fields.next();
-                    flattenNodeWithLabel(field.getValue(), map);
+                    // 최상위 레벨의 title, recipient 등을 처리
+                    if (field.getValue().isTextual()) {
+                        map.put(field.getKey(), field.getValue().asText());
+                    } else {
+                        flattenNodeWithLabel(field.getValue(), map);
+                    }
                 }
             }
         } else if (node.isArray()) {
             for (JsonNode arrayElement : node) {
                 flattenNodeWithLabel(arrayElement, map);
-            }
-        } else {
-            // "title", "recipient"과 같은 최상위 key-value 쌍 처리
-            if (node.isTextual()) {
-                // 이 부분은 최상위 레벨의 key-value를 처리하도록 추가 로직 필요
-                // ex) if (node.isTextual() && node.parent().isObject())
             }
         }
     }
@@ -410,7 +408,7 @@ public class DocumentService {
      * [신규] 문단 내의 자리 표시자를 교체하는 private 헬퍼 메서드입니다.
      */
     private void replacePlaceholdersInParagraph(XWPFParagraph paragraph, Map<String, String> data) {
-        // 1. 문단 전체의 텍스트를 하나로 합침
+        // 1. 문단 전체의 텍스트를 하나로 합칩니다.
         StringBuilder fullTextBuilder = new StringBuilder();
         for (XWPFRun run : paragraph.getRuns()) {
             if (run.getText(0) != null) {
@@ -419,12 +417,12 @@ public class DocumentService {
         }
         String fullText = fullTextBuilder.toString();
 
-        // 2. 플레이스홀더가 없으면 바로 반환
+        // 2. 플레이스홀더가 없으면 바로 반환합니다.
         if (fullText == null || !fullText.contains("{{") || !fullText.contains("}}")) {
             return;
         }
 
-        // 3. 정규식을 이용해 플레이스홀더를 찾아 교체
+        // 3. 정규식을 이용해 플레이스홀더를 찾아 교체합니다.
         String replacedText = fullText;
         Pattern pattern = Pattern.compile("\\{\\{([^}]+)\\}\\}");
         Matcher matcher = pattern.matcher(fullText);
@@ -438,7 +436,7 @@ public class DocumentService {
             }
         }
 
-        // 4. 변경된 내용이 있을 때만 Run 재구성
+        // 4. 변경된 내용이 있을 때만 Run을 재구성합니다.
         if (!fullText.equals(replacedText)) {
             while (!paragraph.getRuns().isEmpty()) {
                 paragraph.removeRun(0);
