@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.poi.xwpf.usermodel.XWPFTableRow;
@@ -279,9 +280,13 @@ public class DocumentService {
         String markdownContentBefore = convertDocxToMarkdown(document);
         // Markdown을 JSON으로 변경
         String jsonBefore = geminiService.makeJsonBefore(markdownContentBefore);
+        System.out.println("JsonBefore: " + jsonBefore);
         // JSON을 완성된 JSON으로 변경
-        String jsonAfter = gptService.generateResponse(jsonBefore, extractedText);
-
+        String jsonAfter = gptService.generateResponse(jsonBefore, extractedText)
+            .replaceAll("(?i)```json", "")
+            .replace("```", "")
+            .trim();;
+        System.out.println("JsonAfter: " + jsonAfter);
         // 1. DB에서 원본 템플릿 문서를 찾습니다.
         Document templateDocument = documentRepository.findById(documentId)
             .orElseThrow(() -> new RuntimeException("문서를 찾을 수 없습니다: " + documentId));
@@ -291,6 +296,7 @@ public class DocumentService {
 
         // 3. JSON을 평탄화된 Map으로 변환합니다.
         Map<String, String> dataMap = flattenJsonToMap(jsonAfter);
+        System.out.println("dataMap: " + dataMap);
 
         // 4. Apache POI를 사용해 DOCX 템플릿을 열고 자리 표시자를 교체합니다.
         try (XWPFDocument doc = new XWPFDocument(templateInputStream)) {
@@ -368,27 +374,35 @@ public class DocumentService {
      * [신규] 문단 내의 자리 표시자를 교체하는 private 헬퍼 메서드입니다.
      */
     private void replacePlaceholdersInParagraph(XWPFParagraph paragraph, Map<String, String> data) {
-        String originalText = paragraph.getText();
-        if (originalText == null || !originalText.contains("{{")) {
+        // 1. 문단의 모든 텍스트를 하나의 StringBuilder로 합치고, 기존 Run 정보를 저장합니다.
+        StringBuilder fullTextBuilder = new StringBuilder();
+        for (XWPFRun run : paragraph.getRuns()) {
+            fullTextBuilder.append(run.getText(0));
+        }
+
+        String fullText = fullTextBuilder.toString();
+        if (fullText == null || !fullText.contains("{{")) {
             return;
         }
 
-        final String[] textToReplace = {originalText};
-        data.forEach((key, value) -> {
-            String placeholder = "{{" + key + "}}";
-            if (textToReplace[0].contains(placeholder)) {
-                textToReplace[0] = textToReplace[0].replace(placeholder, value);
+        // 2. 합쳐진 텍스트에서 플레이스홀더를 교체합니다.
+        String replacedText = fullText;
+        for (Map.Entry<String, String> entry : data.entrySet()) {
+            String placeholder = "{{" + entry.getKey() + "}}";
+            if (replacedText.contains(placeholder)) {
+                replacedText = replacedText.replace(placeholder, entry.getValue());
             }
-        });
+        }
 
-        // 텍스트에 변경이 있었을 경우에만 Run을 교체합니다.
-        if (!originalText.equals(textToReplace[0])) {
+        // 3. 텍스트에 변경이 있었을 경우에만 Run을 교체합니다.
+        if (!fullText.equals(replacedText)) {
             // 기존의 모든 Run을 삭제
             while (!paragraph.getRuns().isEmpty()) {
                 paragraph.removeRun(0);
             }
-            // 교체된 텍스트로 새로운 Run을 생성
-            paragraph.createRun().setText(textToReplace[0]);
+
+            // 4. 교체된 텍스트로 새로운 Run을 생성
+            paragraph.createRun().setText(replacedText);
         }
     }
 }
