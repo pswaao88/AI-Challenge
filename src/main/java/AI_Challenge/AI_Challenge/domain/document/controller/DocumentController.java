@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -164,15 +165,16 @@ public class DocumentController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    @PostMapping("/ensure-uploaded")
-    public ResponseEntity<Map<String, Long>> ensureUploaded(@RequestParam("file") MultipartFile file) {
-        try {
-            Long documentId = documentService.ensureFileUploadedAndGetId(file);
-            Map<String, Long> response = new HashMap<>();
-            response.put("id", documentId);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    @GetMapping("/find-by-name")
+    public ResponseEntity<Map<String, Long>> findDocumentByName(@RequestParam("fileName") String fileName) {
+        // 서비스 계층을 호출하여 파일 이름으로 문서를 찾습니다.
+        Optional<Document> document = documentService.findDocumentByName(fileName);
+
+        Map<String, Long> response = new HashMap<>();
+        // 문서가 존재할 경우에만, 그 문서의 ID를 "id"라는 키에 담아 응답합니다.
+        document.ifPresent(doc -> response.put("id", doc.getId()));
+
+        // ID가 있으면 { "id": 123 }, 없으면 빈 객체 {} 를 반환합니다.
+        return ResponseEntity.ok(response);
     }
 }

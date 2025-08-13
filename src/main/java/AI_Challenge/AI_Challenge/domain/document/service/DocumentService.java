@@ -264,23 +264,10 @@ public class DocumentService {
         return document.getContent();
     }
 
-    @Transactional
-    public Long ensureFileUploadedAndGetId(MultipartFile file) throws Exception {
-        String fileName = file.getOriginalFilename();
-
-        // 1. 파일 이름으로 DB에서 문서를 검색합니다.
-        Optional<Document> existingDocument = documentRepository.findByFileName(fileName);
-
-        if (existingDocument.isPresent()) {
-            // 2. 문서가 이미 존재하면, 기존 ID를 반환합니다.
-            log.info("기존 문서 발견. ID 반환: {}", existingDocument.get().getId());
-            return existingDocument.get().getId();
-        } else {
-            // 3. 문서가 존재하지 않으면, uploadDocument 메서드를 호출하여 새로 저장합니다.
-            log.info("새로운 문서. 업로드 후 ID 반환: {}", fileName);
-            Document newDocument = uploadDocument(file); // 기존의 업로드 메서드 재활용
-            return newDocument.getId();
-        }
+    @Transactional(readOnly = true)
+    public Optional<Document> findDocumentByName(String fileName) {
+        // Repository를 사용해 파일 이름으로 문서를 찾습니다.
+        return documentRepository.findByFileName(fileName);
     }
 
     // json 내용 채우기

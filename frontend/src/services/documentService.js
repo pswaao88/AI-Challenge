@@ -81,18 +81,26 @@ export const createAndDownloadDocument = async (extractedText, documentId) => {
 
   // 백엔드 컨트롤러의 @RequestParam 이름과 정확히 일치시킵니다.
   formData.append('extractedText', extractedText);
-  formData.append('documentId', documentId); // 'documentFile' 대신 'documentId'를 전달합니다.
+  formData.append('documentId', documentId);
 
   return await apiClient.post('/document/create-and-download', formData, {
     responseType: 'blob', // 서버가 byte[]를 반환하므로 blob 타입으로 받습니다.
   });
 };
 
-export const ensureFileUploadedAndGetId = async (file) => {
+// 1. 파일 이름으로 ID를 확인하는 API
+export const findIdByName = async (fileName) => {
+  const response = await apiClient.get('/document/find-by-name', {
+    params: { fileName }
+  });
+  return response.data; // { id: 123 } 또는 {} 형태의 객체를 반환
+};
+
+// 2. 파일을 업로드하고 ID를 받는 API (기존의 업로드 로직 활용)
+// 이 API는 파일을 업로드하고, 저장된 Document 객체(ID 포함)를 반환해야 합니다.
+export const uploadFileAndGetId = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
-
-  // POST 요청 후, 응답 데이터(예: { id: 123 })를 반환합니다.
-  const response = await apiClient.post('/document/ensure-uploaded', formData);
-  return response.data;
+  const response = await apiClient.post('/document/upload', formData); // 기존 업로드 엔드포인트
+  return response.data; // { id: 456, fileName: ... } 형태의 객체를 반환
 };

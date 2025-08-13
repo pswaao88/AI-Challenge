@@ -7,7 +7,7 @@ import {
   processImageWithGemini,
   uploadDocument,
   createAndDownloadDocument,
-  ensureFileUploadedAndGetId
+  ensureFileUploadedAndGetId, findIdByName, uploadFileAndGetId
 } from '../../services/documentService';
 
 // --- 레이아웃 컴포넌트 ---
@@ -241,40 +241,49 @@ function MainPage() {
 
       const processedResults = [];
       for (const doc of selectedDocxDocs) {
-        if (doc.file && doc.file instanceof File) {
-          try {
-            setProcessingStatus(`'${doc.name}' ID 확인 및 발급 중...`);
+        try {
+          setProcessingStatus(`'${doc.name}' ID 확인 중...`);
+          let documentId;
 
-            // 1. [변경] 파일을 보내 ID를 먼저 받아옵니다.
-            const idResponse = await ensureFileUploadedAndGetId(doc.file);
-            const documentId = idResponse.id;
+          // 1. 파일 이름만 보내서 DB에 파일이 이미 존재하는지 먼저 확인합니다.
+          const idResponse = await findIdByName(doc.name);
+          documentId = idResponse.id;
 
-            if (!documentId) {
-              throw new Error("서버로부터 유효한 ID를 받지 못했습니다.");
+          // 2. ID를 받아오지 못했다면 (서버에 파일이 없다면),
+          //    그때서야 비로소 파일을 업로드하여 새로운 ID를 받습니다.
+          if (!documentId) {
+            // 이 부분은 프론트엔드가 원본 파일(doc.file)을 가지고 있을 때만 실행 가능합니다.
+            if (doc.file && doc.file instanceof File) {
+              setProcessingStatus(`'${doc.name}' 신규 파일 업로드 중...`);
+              const uploadResponse = await uploadFileAndGetId(doc.file);
+              documentId = uploadResponse.id;
+            } else {
+              // 처리할 파일이 없는 경우, 이 루프를 건너뜁니다.
+              console.error(`'${doc.name}'에 대한 로컬 파일이 없어 업로드할 수 없습니다.`);
+              setProcessingStatus(`'${doc.name}' 처리 실패 (원본 파일 없음).`);
+              continue; // 다음 문서로 넘어감
             }
-
-            setProcessingStatus(`'${doc.name}' (ID: ${documentId}) 문서 처리 중...`);
-
-            // 2. [변경] 받아온 ID를 사용해 실제 문서 처리를 요청합니다.
-            const processResponse = await createAndDownloadDocument(extractedText, documentId);
-
-            // 3. (기존과 동일) 결과 처리
-            const url = window.URL.createObjectURL(new Blob([processResponse.data]));
-            const newFileName = `(완료) ${doc.name.replace(/\.docx?$/, '')}.docx`;
-
-            processedResults.push({
-              fileName: newFileName,
-              downloadUrl: url,
-            });
-
-          } catch (error) {
-            console.error(`'${doc.name}' 처리 중 오류 발생:`, error);
-            // 사용자에게 오류를 알리는 UI 처리 (예: 토스트 메시지)
-            setProcessingStatus(`'${doc.name}' 처리 실패.`);
           }
 
-        } else {
-          console.warn("건너뜀: 유효한 파일이 없는 문서 객체입니다.", doc);
+          // 3. 최종적으로 확보된 ID로 실제 문서 처리를 요청합니다.
+          if (!documentId) {
+            throw new Error("문서 ID를 확보하지 못했습니다.");
+          }
+
+          setProcessingStatus(`'${doc.name}' (ID: ${documentId}) 처리 중...`);
+          const processResponse = await createAndDownloadDocument(extractedText, documentId);
+
+          // 4. 결과 처리 (기존과 동일)
+          const url = window.URL.createObjectURL(new Blob([processResponse.data]));
+          const newFileName = `(완료) ${doc.name.replace(/\.docx?$/, '')}.docx`;
+          processedResults.push({
+            fileName: newFileName,
+            downloadUrl: url,
+          });
+
+        } catch (error) {
+          console.error(`'${doc.name}' 처리 중 오류 발생:`, error);
+          setProcessingStatus(`'${doc.name}' 처리 실패.`);
         }
       }
 
