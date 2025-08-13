@@ -224,6 +224,7 @@ public class DocumentService {
             Files.deleteIfExists(tempInputFile);
             log.info("임시 파일 삭제 완료: {}", tempInputFile);
         }
+        System.out.println("test!!!!!!!!!!!: " + markdownContent);
         return markdownContent;
     }
 
