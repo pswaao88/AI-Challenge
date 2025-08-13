@@ -139,9 +139,10 @@ public class DocumentController {
     }
 
     @PostMapping("/create-and-download")
-    public ResponseEntity<byte[]> makeResultDocuments(@RequestParam("extractedText") String extractedText, @RequestParam("documentFile") MultipartFile documentFile) {
+    public ResponseEntity<byte[]> makeResultDocuments(@RequestParam("extractedText") String extractedText, @RequestParam("documentId") Long documentId) {
         try {
-            byte[] result = documentService.finalLogic(extractedText, documentFile);
+            byte[] result = documentService.fillDocxTemplateWithJson(extractedText, documentId);
+
             // HTTP 헤더.
             HttpHeaders headers = new HttpHeaders();
 
@@ -162,6 +163,17 @@ public class DocumentController {
         } catch (Exception e) {
             // 서비스 로직 처리 중 에러가 발생했을 경우
             log.error("Error creating document", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    @PostMapping("/ensure-uploaded")
+    public ResponseEntity<Map<String, Long>> ensureUploaded(@RequestParam("file") MultipartFile file) {
+        try {
+            Long documentId = documentService.ensureFileUploadedAndGetId(file);
+            Map<String, Long> response = new HashMap<>();
+            response.put("id", documentId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

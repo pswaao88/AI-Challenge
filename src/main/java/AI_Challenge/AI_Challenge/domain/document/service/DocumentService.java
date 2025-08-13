@@ -2,10 +2,14 @@ package AI_Challenge.AI_Challenge.domain.document.service;
 
 import AI_Challenge.AI_Challenge.domain.document.entity.Document;
 import AI_Challenge.AI_Challenge.domain.document.repository.DocumentRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.theokanning.openai.service.OpenAiService;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +17,11 @@ import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.apache.poi.xwpf.usermodel.XWPFTable;
+import org.apache.poi.xwpf.usermodel.XWPFTableCell;
+import org.apache.poi.xwpf.usermodel.XWPFTableRow;
+import org.docx4j.Docx4J;
+import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -183,101 +192,7 @@ public class DocumentService {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
         return String.format("(완료)%s_%s%s", nameWithoutExt, timestamp, extension);
     }
-    // Docx를 마크다운으로
-    public String convertDocxToMarkdown(MultipartFile docxFile) throws IOException, InterruptedException {
-        // 1. 임시 DOCX 파일 생성 및 내용 쓰기
-        Path tempInputFile = Files.createTempFile("input_", ".docx");
-        docxFile.transferTo(tempInputFile);
 
-        log.info("DOCX를 마크다운으로 변환 시작: {}", tempInputFile);
-
-        String markdownContent;
-        try {
-            // 2. Pandoc 명령어 실행 준비
-            ProcessBuilder processBuilder = new ProcessBuilder(
-                "pandoc",
-                "-f", "docx",      // 입력 포맷: docx
-                // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-                // 수정된 부분: 기본 markdown 대신 gfm(GitHub Flavored Markdown) 사용
-                "-t", "gfm",
-                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-                tempInputFile.toAbsolutePath().toString()
-            );
-
-            // 3. Pandoc 실행 및 결과 읽기
-            Process process = processBuilder.start();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                StringBuilder result = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    result.append(line).append("\n");
-                }
-                markdownContent = result.toString();
-            }
-
-            // 4. 프로세스 에러 처리
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                String errorOutput = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
-                log.error("Pandoc 실행 오류 (Exit code: {}): {}", exitCode, errorOutput);
-                throw new RuntimeException("DOCX를 Markdown으로 변환하는 데 실패했습니다.");
-            }
-        } finally {
-            // 5. 임시 파일 삭제
-            Files.deleteIfExists(tempInputFile);
-            log.info("임시 파일 삭제 완료: {}", tempInputFile);
-        }
-        System.out.println("test!!!!!!!!!!!: " + markdownContent);
-        return markdownContent;
-    }
-
-    // 마크다운을 Docx로
-    public byte[] convertMarkdownToDocx(String markdownContent) throws IOException, InterruptedException {
-        // 1. 임시 마크다운 파일 생성 및 내용 쓰기
-        Path tempInputFile = Files.createTempFile("input_", ".md");
-        Files.writeString(tempInputFile, markdownContent, StandardCharsets.UTF_8);
-
-        // 2. 변환된 DOCX가 저장될 임시 출력 파일 경로 지정
-        Path tempOutputFile = Files.createTempFile("output_", ".docx");
-
-        log.info("마크다운을 DOCX로 변환 시작. 입력: {}, 출력: {}", tempInputFile, tempOutputFile);
-
-        byte[] docxBytes;
-        try {
-            // 3. Pandoc 명령어 실행 준비
-            ProcessBuilder processBuilder = new ProcessBuilder(
-                "pandoc",
-                // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-                // 수정된 부분: 입력 포맷을 gfm으로 지정
-                "-f", "gfm",
-                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-                "-t", "docx",     // 출력 포맷: docx
-                "-o", tempOutputFile.toAbsolutePath().toString(), // 출력 파일 경로 지정
-                tempInputFile.toAbsolutePath().toString()
-            );
-
-            // 4. Pandoc 실행 및 종료 대기
-            Process process = processBuilder.start();
-            int exitCode = process.waitFor();
-
-            // 5. 프로세스 에러 처리
-            if (exitCode != 0) {
-                String errorOutput = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
-                log.error("Pandoc 실행 오류 (Exit code: {}): {}", exitCode, errorOutput);
-                throw new RuntimeException("Markdown을 DOCX로 변환하는 데 실패했습니다.");
-            }
-
-            // 6. 생성된 DOCX 파일의 내용을 byte 배열로 읽기
-            docxBytes = Files.readAllBytes(tempOutputFile);
-
-        } finally {
-            // 7. 사용한 임시 파일 모두 삭제
-            Files.deleteIfExists(tempInputFile);
-            Files.deleteIfExists(tempOutputFile);
-            log.info("임시 파일 삭제 완료: {}, {}", tempInputFile, tempOutputFile);
-        }
-        return docxBytes;
-    }
 
     private void validateFile(MultipartFile file) {
         if (file.isEmpty()) {
@@ -298,42 +213,201 @@ public class DocumentService {
             return extractor.getText();
         }
     }
+    public String convertDocxToMarkdown(Document document) throws IOException, InterruptedException {
+        // 1. Document 엔티티로부터 byte[] 콘텐츠를 가져옵니다.
+        byte[] docxContent = document.getContent();
 
-    public byte[] createAndDownloadDocument(Long documentId, String extractedText) throws Exception {
+        // 2. byte[]를 임시 DOCX 파일로 생성합니다.
+        Path tempInputFile = Files.createTempFile("input_", ".docx");
+        Files.write(tempInputFile, docxContent);
+
+        log.info("DOCX를 마크다운으로 변환 시작: {}", tempInputFile);
+
+        String markdownContent;
+        try {
+            // 3. Pandoc 명령어 실행 준비 (이 부분은 기존과 동일합니다)
+            ProcessBuilder processBuilder = new ProcessBuilder(
+                "pandoc",
+                "-f", "docx",      // 입력 포맷: docx
+                "-t", "gfm",       // 출력 포맷: GitHub Flavored Markdown
+                tempInputFile.toAbsolutePath().toString()
+            );
+
+            // 4. Pandoc 실행 및 결과 읽기
+            Process process = processBuilder.start();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                StringBuilder result = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    result.append(line).append("\n");
+                }
+                markdownContent = result.toString();
+            }
+
+            // 5. 프로세스 에러 처리
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                String errorOutput = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
+                log.error("Pandoc 실행 오류 (Exit code: {}): {}", exitCode, errorOutput);
+                throw new RuntimeException("DOCX를 Markdown으로 변환하는 데 실패했습니다.");
+            }
+        } finally {
+            // 6. 사용이 끝난 임시 파일 삭제
+            Files.deleteIfExists(tempInputFile);
+            log.info("임시 파일 삭제 완료: {}", tempInputFile);
+        }
+        return markdownContent;
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] getTemplateContentById(Long documentId) {
+        // 1. ID를 사용해 데이터베이스에서 Document 엔티티를 찾습니다.
         Document document = documentRepository.findById(documentId)
             .orElseThrow(() -> new RuntimeException("문서를 찾을 수 없습니다: " + documentId));
 
-        // 1. 새로운 XWPFDocument 객체 생성 (빈 DOCX 파일을 만듭니다)
-        try (XWPFDocument newDoc = new XWPFDocument()) {
-            // 2. 새로운 단락(paragraph) 생성
-            XWPFParagraph paragraph = newDoc.createParagraph();
+        // 2. 엔티티가 가지고 있는 content 필드(byte[])를 직접 반환합니다.
+        //    파일 시스템을 전혀 참조할 필요가 없습니다.
+        return document.getContent();
+    }
 
-            // 3. 단락에 텍스트 추가
-            XWPFRun run = paragraph.createRun();
-            run.setText(extractedText);
-            run.setFontFamily("맑은 고딕"); // 글꼴 설정 (필요시)
-            run.setFontSize(11);          // 글꼴 크기 설정 (필요시)
+    @Transactional
+    public Long ensureFileUploadedAndGetId(MultipartFile file) throws Exception {
+        String fileName = file.getOriginalFilename();
 
-            // 4. ByteArrayOutputStream을 사용하여 수정된 문서를 byte[]로 변환
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            newDoc.write(bos);
+        // 1. 파일 이름으로 DB에서 문서를 검색합니다.
+        Optional<Document> existingDocument = documentRepository.findByFileName(fileName);
 
-            return bos.toByteArray();
-
-        } catch (IOException e) {
-            log.error("DOCX 파일 생성 중 오류 발생", e);
-            throw new RuntimeException("DOCX 파일 생성 실패", e);
+        if (existingDocument.isPresent()) {
+            // 2. 문서가 이미 존재하면, 기존 ID를 반환합니다.
+            log.info("기존 문서 발견. ID 반환: {}", existingDocument.get().getId());
+            return existingDocument.get().getId();
+        } else {
+            // 3. 문서가 존재하지 않으면, uploadDocument 메서드를 호출하여 새로 저장합니다.
+            log.info("새로운 문서. 업로드 후 ID 반환: {}", fileName);
+            Document newDocument = uploadDocument(file); // 기존의 업로드 메서드 재활용
+            return newDocument.getId();
         }
     }
-    public byte[] finalLogic(String extractedText, MultipartFile document)throws IOException, InterruptedException{
-        // Docx를 Markdown으로 변경
+
+    // json 내용 채우기
+    @Transactional(readOnly = true)
+    public byte[] fillDocxTemplateWithJson(String extractedText, Long documentId) throws IOException, InterruptedException {
+        Document document = documentRepository.findById(documentId)
+            .orElseThrow(() -> new RuntimeException("문서를 찾을 수 없습니다. ID: " + documentId));        // Docx를 Markdown으로 변경
+
         String markdownContentBefore = convertDocxToMarkdown(document);
         // Markdown을 JSON으로 변경
         String jsonBefore = geminiService.makeJsonBefore(markdownContentBefore);
         // JSON을 완성된 JSON으로 변경
         String jsonAfter = gptService.generateResponse(jsonBefore, extractedText);
-        //
-        String makeMarkDownResult = geminiService.makeJsonToMarkDown(markdownContentBefore, jsonAfter);
-        return convertMarkdownToDocx(makeMarkDownResult);
+
+        // 1. DB에서 원본 템플릿 문서를 찾습니다.
+        Document templateDocument = documentRepository.findById(documentId)
+            .orElseThrow(() -> new RuntimeException("문서를 찾을 수 없습니다: " + documentId));
+
+        // 2. 문서의 원본 내용(byte[])을 InputStream으로 변환합니다.
+        InputStream templateInputStream = new ByteArrayInputStream(templateDocument.getContent());
+
+        // 3. JSON을 평탄화된 Map으로 변환합니다.
+        Map<String, String> dataMap = flattenJsonToMap(jsonAfter);
+
+        // 4. Apache POI를 사용해 DOCX 템플릿을 열고 자리 표시자를 교체합니다.
+        try (XWPFDocument doc = new XWPFDocument(templateInputStream)) {
+            // 일반 문단 교체
+            for (XWPFParagraph p : doc.getParagraphs()) {
+                replacePlaceholdersInParagraph(p, dataMap);
+            }
+
+            // 표 안의 내용 교체
+            for (XWPFTable table : doc.getTables()) {
+                for (XWPFTableRow row : table.getRows()) {
+                    for (XWPFTableCell cell : row.getTableCells()) {
+                        for (XWPFParagraph p : cell.getParagraphs()) {
+                            replacePlaceholdersInParagraph(p, dataMap);
+                        }
+                    }
+                }
+            }
+
+            // 5. 수정된 문서를 byte 배열로 변환하여 반환
+            try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                doc.write(baos);
+                log.info("DOCX 템플릿 채우기 완료. 문서 ID: {}", documentId);
+                return baos.toByteArray();
+            }
+        }
+    }
+
+    /**
+     * 중첩된 JSON을 평탄한 Map으로 변환
+     */
+    private Map<String, String> flattenJsonToMap(String jsonString) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> jsonMap = mapper.readValue(jsonString, new TypeReference<>() {});
+        Map<String, String> flattenedMap = new HashMap<>();
+        flattenRecursively(flattenedMap, jsonMap, "");
+        return flattenedMap;
+    }
+
+    /**
+     * [신규] 재귀적으로 Map을 순회하며 키를 평탄화하는 private 헬퍼 메서드입니다.
+     */
+    @SuppressWarnings("unchecked")
+    private void flattenRecursively(Map<String, String> flattenedMap, Map<String, Object> jsonMap, String prefix) {
+        for (Map.Entry<String, Object> entry : jsonMap.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            String newPrefix = prefix.isEmpty() ? key : prefix + "." + key;
+
+            if (value instanceof Map) {
+                flattenRecursively(flattenedMap, (Map<String, Object>) value, newPrefix);
+            } else if (value instanceof List) {
+                List<?> list = (List<?>) value;
+                Map<String, Integer> duplicateLabelCounter = new HashMap<>();
+                for (Object item : list) {
+                    if (item instanceof Map) {
+                        Map<String, Object> itemMap = (Map<String, Object>) item;
+                        String label = (String) itemMap.get("label"); // 'label'을 기준으로 고유 키 생성
+                        int count = duplicateLabelCounter.getOrDefault(label, 0);
+                        String uniquePrefix = newPrefix + "[" + count + "]"; // 예: table.운임[0]
+                        if(label != null && !label.isEmpty()){
+                            uniquePrefix = newPrefix + "." + label + "[" + count + "]";
+                        }
+                        duplicateLabelCounter.put(label, count + 1);
+                        flattenRecursively(flattenedMap, itemMap, uniquePrefix);
+                    }
+                }
+            } else if (value != null) {
+                flattenedMap.put(newPrefix, value.toString());
+            }
+        }
+    }
+
+    /**
+     * [신규] 문단 내의 자리 표시자를 교체하는 private 헬퍼 메서드입니다.
+     */
+    private void replacePlaceholdersInParagraph(XWPFParagraph paragraph, Map<String, String> data) {
+        String originalText = paragraph.getText();
+        if (originalText == null || !originalText.contains("{{")) {
+            return;
+        }
+
+        final String[] textToReplace = {originalText};
+        data.forEach((key, value) -> {
+            String placeholder = "{{" + key + "}}";
+            if (textToReplace[0].contains(placeholder)) {
+                textToReplace[0] = textToReplace[0].replace(placeholder, value);
+            }
+        });
+
+        // 텍스트에 변경이 있었을 경우에만 Run을 교체합니다.
+        if (!originalText.equals(textToReplace[0])) {
+            // 기존의 모든 Run을 삭제
+            while (!paragraph.getRuns().isEmpty()) {
+                paragraph.removeRun(0);
+            }
+            // 교체된 텍스트로 새로운 Run을 생성
+            paragraph.createRun().setText(textToReplace[0]);
+        }
     }
 }

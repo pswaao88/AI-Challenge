@@ -3,7 +3,12 @@ import styled from 'styled-components';
 import logoImage from '../../assets/logo.png';
 import DocSelector from "../../components/DocSelector/DocSelector";
 import ImageUpload from '../../components/FileUpload/ImageUpload';
-import { processImageWithGemini, uploadDocument, createAndDownloadDocument } from '../../services/documentService';
+import {
+  processImageWithGemini,
+  uploadDocument,
+  createAndDownloadDocument,
+  ensureFileUploadedAndGetId
+} from '../../services/documentService';
 
 // --- 레이아웃 컴포넌트 ---
 
@@ -234,21 +239,40 @@ function MainPage() {
       const geminiResponse = await processImageWithGemini(uploadedImages);
       const extractedText = geminiResponse.data.map(item => item.response).join('\n\n');
 
-      // [수정] 불필요한 중간 업로드 과정을 제거하고 바로 처리합니다.
       const processedResults = [];
       for (const doc of selectedDocxDocs) {
         if (doc.file && doc.file instanceof File) {
-          setProcessingStatus(`'${doc.name}' 문서 처리 중...`);
+          try {
+            setProcessingStatus(`'${doc.name}' ID 확인 및 발급 중...`);
 
-          const processResponse = await createAndDownloadDocument(extractedText, doc.file);
+            // 1. [변경] 파일을 보내 ID를 먼저 받아옵니다.
+            const idResponse = await ensureFileUploadedAndGetId(doc.file);
+            const documentId = idResponse.id;
 
-          const url = window.URL.createObjectURL(new Blob([processResponse.data]));
-          const newFileName = `(완료) ${doc.name.replace(/\.docx?$/, '')}.docx`;
+            if (!documentId) {
+              throw new Error("서버로부터 유효한 ID를 받지 못했습니다.");
+            }
 
-          processedResults.push({
-            fileName: newFileName,
-            downloadUrl: url,
-          });
+            setProcessingStatus(`'${doc.name}' (ID: ${documentId}) 문서 처리 중...`);
+
+            // 2. [변경] 받아온 ID를 사용해 실제 문서 처리를 요청합니다.
+            const processResponse = await createAndDownloadDocument(extractedText, documentId);
+
+            // 3. (기존과 동일) 결과 처리
+            const url = window.URL.createObjectURL(new Blob([processResponse.data]));
+            const newFileName = `(완료) ${doc.name.replace(/\.docx?$/, '')}.docx`;
+
+            processedResults.push({
+              fileName: newFileName,
+              downloadUrl: url,
+            });
+
+          } catch (error) {
+            console.error(`'${doc.name}' 처리 중 오류 발생:`, error);
+            // 사용자에게 오류를 알리는 UI 처리 (예: 토스트 메시지)
+            setProcessingStatus(`'${doc.name}' 처리 실패.`);
+          }
+
         } else {
           console.warn("건너뜀: 유효한 파일이 없는 문서 객체입니다.", doc);
         }
