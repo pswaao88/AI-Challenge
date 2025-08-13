@@ -139,30 +139,6 @@ public class DocumentController {
     }
 
     @PostMapping("/create-and-download")
-    public ResponseEntity<byte[]> createAndDownloadDocument(@RequestBody Map<String, Object> request) {
-        try {
-            // documentId를 안전하게 Long으로 변환
-            Long documentId = Long.valueOf(request.get("documentId").toString());
-            String extractedText = request.get("extractedText").toString();
-
-            // 템플릿에 텍스트를 채워 넣고 바이트 배열로 반환하는 서비스 메서드 호출
-            byte[] processedContent = documentService.createAndDownloadDocument(documentId, extractedText);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-            headers.setContentDisposition(ContentDisposition.builder("attachment")
-                .filename("processed_document.docx") // 동적으로 파일명 설정 가능
-                .build());
-
-            return new ResponseEntity<>(processedContent, headers, HttpStatus.OK);
-
-        } catch (Exception e) {
-            log.error("새로운 문서 생성 및 다운로드 중 오류 발생", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    @PostMapping("/create-and-download")
     public ResponseEntity<byte[]> makeResultDocuments(@RequestParam("extractedText") String extractedText, @RequestParam("documentFile") MultipartFile document) {
         try {
             byte[] result = documentService.finalLogic(extractedText, document);
