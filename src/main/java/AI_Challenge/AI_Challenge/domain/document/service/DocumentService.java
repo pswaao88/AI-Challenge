@@ -339,8 +339,9 @@ public class DocumentService {
 
         try {
             JsonNode rootNode = objectMapper.readTree(jsonString);
-            flattenNodeWithLabel(rootNode, dataMap);
+            flattenNodeWithLabel(null, rootNode, dataMap);
         } catch (JsonProcessingException e) {
+            // JSON 파싱 에러는 그대로 로깅
             log.error("JSON 파싱 에러", e);
         }
         return dataMap;
@@ -349,9 +350,10 @@ public class DocumentService {
     private void flattenNodeWithLabel(String parentKey, JsonNode node, Map<String, String> map) {
         if (node.isObject()) {
             if (node.has("label") && node.has("value")) {
-                // "label"과 "value"를 가진 객체는 label을 키로 사용
+                // 'label'과 'value'를 가진 객체는 'label'을 키로 사용하여 map에 추가
                 map.put(node.get("label").asText(), node.get("value").asText());
             } else {
+                // 그 외 객체는 자식 노드를 순회
                 Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
                 while (fields.hasNext()) {
                     Map.Entry<String, JsonNode> field = fields.next();
@@ -359,11 +361,12 @@ public class DocumentService {
                 }
             }
         } else if (node.isArray()) {
+            // 배열은 각 요소를 순회하며 재귀 호출
             for (JsonNode arrayElement : node) {
                 flattenNodeWithLabel(parentKey, arrayElement, map);
             }
-        } else if (node.isTextual() && !parentKey.isEmpty()) {
-            // 최상위 레벨의 title, recipient와 같은 key-value 쌍 처리
+        } else if (node.isTextual() && parentKey != null) {
+            // 최상위 레벨의 단순 키-값 쌍 처리 (예: "title", "recipient")
             map.put(parentKey, node.asText());
         }
     }
