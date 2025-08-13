@@ -346,27 +346,25 @@ public class DocumentService {
         return dataMap;
     }
 
-    private void flattenNodeWithLabel(JsonNode node, Map<String, String> map) {
+    private void flattenNodeWithLabel(String parentKey, JsonNode node, Map<String, String> map) {
         if (node.isObject()) {
             if (node.has("label") && node.has("value")) {
-                // "label"과 "value"를 가진 객체는 key-value로 직접 추가
+                // "label"과 "value"를 가진 객체는 label을 키로 사용
                 map.put(node.get("label").asText(), node.get("value").asText());
             } else {
                 Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
                 while (fields.hasNext()) {
                     Map.Entry<String, JsonNode> field = fields.next();
-                    // 최상위 레벨의 title, recipient 등을 처리
-                    if (field.getValue().isTextual()) {
-                        map.put(field.getKey(), field.getValue().asText());
-                    } else {
-                        flattenNodeWithLabel(field.getValue(), map);
-                    }
+                    flattenNodeWithLabel(field.getKey(), field.getValue(), map);
                 }
             }
         } else if (node.isArray()) {
             for (JsonNode arrayElement : node) {
-                flattenNodeWithLabel(arrayElement, map);
+                flattenNodeWithLabel(parentKey, arrayElement, map);
             }
+        } else if (node.isTextual() && !parentKey.isEmpty()) {
+            // 최상위 레벨의 title, recipient와 같은 key-value 쌍 처리
+            map.put(parentKey, node.asText());
         }
     }
 
@@ -408,41 +406,47 @@ public class DocumentService {
      * [신규] 문단 내의 자리 표시자를 교체하는 private 헬퍼 메서드입니다.
      */
     private void replacePlaceholdersInParagraph(XWPFParagraph paragraph, Map<String, String> data) {
-        // 1. 문단 전체의 텍스트를 하나로 합칩니다.
-        StringBuilder fullTextBuilder = new StringBuilder();
+        String text = paragraph.getText(); // 문단 전체 텍스트 가져오기
+        if (!text.contains("{{") || !text.contains("}}")) {
+            return; // 플레이스홀더가 없으면 바로 종료
+        }
+
+        // 플레이스홀더를 찾기 위한 정규식 패턴
+        Pattern pattern = Pattern.compile("\\{\\{([^}]+)\\}\\}");
+        Matcher matcher = pattern.matcher(text);
+
+        // 문단의 모든 텍스트를 하나의 문자열로 합침
+        StringBuilder builder = new StringBuilder();
         for (XWPFRun run : paragraph.getRuns()) {
             if (run.getText(0) != null) {
-                fullTextBuilder.append(run.getText(0));
+                builder.append(run.getText(0));
             }
         }
-        String fullText = fullTextBuilder.toString();
 
-        // 2. 플레이스홀더가 없으면 바로 반환합니다.
-        if (fullText == null || !fullText.contains("{{") || !fullText.contains("}}")) {
-            return;
-        }
+        String currentText = builder.toString();
 
-        // 3. 정규식을 이용해 플레이스홀더를 찾아 교체합니다.
-        String replacedText = fullText;
-        Pattern pattern = Pattern.compile("\\{\\{([^}]+)\\}\\}");
-        Matcher matcher = pattern.matcher(fullText);
-
+        // 매칭되는 모든 플레이스홀더를 찾아서 교체
         while (matcher.find()) {
-            String placeholderKey = matcher.group(1).trim();
-            // dataMap에서 키를 찾아 값을 교체
-            if (data.containsKey(placeholderKey)) {
-                String value = data.get(placeholderKey);
-                replacedText = replacedText.replace("{{" + placeholderKey + "}}", value);
+            String placeholder = matcher.group(0); // 예: {{이름}}
+            String key = matcher.group(1).trim();  // 예: 이름
+
+            String value = data.get(key);
+            if (value != null) {
+                currentText = currentText.replace(placeholder, value);
             }
         }
 
-        // 4. 변경된 내용이 있을 때만 Run을 재구성합니다.
-        if (!fullText.equals(replacedText)) {
-            while (!paragraph.getRuns().isEmpty()) {
-                paragraph.removeRun(0);
+        // 교체된 텍스트가 있으면 문단을 재구성
+        if (!currentText.equals(text)) {
+            // 기존의 모든 Run 삭제
+            List<XWPFRun> runs = paragraph.getRuns();
+            for (int i = runs.size() - 1; i >= 0; i--) {
+                paragraph.removeRun(i);
             }
+
+            // 새로운 Run 생성 및 텍스트 설정
             XWPFRun newRun = paragraph.createRun();
-            newRun.setText(replacedText);
+            newRun.setText(currentText);
         }
     }
 }
