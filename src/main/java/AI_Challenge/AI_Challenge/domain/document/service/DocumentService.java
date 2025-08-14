@@ -3,7 +3,6 @@ package AI_Challenge.AI_Challenge.domain.document.service;
 import AI_Challenge.AI_Challenge.domain.document.entity.Document;
 import AI_Challenge.AI_Challenge.domain.document.repository.DocumentRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
@@ -13,7 +12,6 @@ import java.io.InputStreamReader;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
-import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
