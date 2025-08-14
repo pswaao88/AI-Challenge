@@ -431,10 +431,12 @@ public class DocumentService {
             String placeholder = matcher.group(0); // 예: {{이름}}
             String key = matcher.group(1).trim();  // 예: 이름
 
-            String value = data.get(key);
-            if (value != null) {
-                currentText = currentText.replace(placeholder, value);
-            }
+            // dataMap에서 키에 해당하는 값을 가져옵니다.
+            // 키가 없거나 값이 null인 경우, 기본값으로 빈 문자열을 사용합니다.
+            String value = data.getOrDefault(key, "");
+
+            // 플레이스홀더를 값으로 교체합니다.
+            currentText = currentText.replace(placeholder, value);
         }
 
         // 교체된 텍스트가 있으면 문단을 재구성
