@@ -43,7 +43,7 @@ services:
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
     volumes:
-      - mysql-data:/var/lib/mysql
+      - /home/pswaao/Desktop/project/AI-challenge/document-upload:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -u $$MYSQL_USER -p$$MYSQL_PASSWORD"]
       interval: 10s
@@ -53,8 +53,6 @@ services:
     networks:
       - ai-challenge-network # 네트워크 정의 추가
 
-volumes:
-  mysql-data:
 
 networks:
   ai-challenge-network:
